@@ -19,7 +19,9 @@ bash scripts/run_upstream_kernel_tests.sh > results/upstream-kernel-tests.log 2>
 echo "upstream tests rc=$? (see results/upstream-kernel-tests.log)"
 
 banner "2. quick pilot (starter stages + adapter at small scale)"
-LSA_MAX_CONTEXT=2048 LSA_REPS=5 "$ROOT/.venv/bin/python" -m lsa_rocm_lab.run --quick
+# reps 10 = the receipt validator's minimum sample evidence; a pilot below it
+# cannot produce a valid receipt (v0.2.0's pilot silently ran reps 20 instead)
+LSA_MAX_CONTEXT=2048 LSA_REPS=10 "$ROOT/.venv/bin/python" -m lsa_rocm_lab.run --quick
 echo "pilot rc=$?"
 
 banner "3. overnight profile (bounded stages, failure-isolated)"

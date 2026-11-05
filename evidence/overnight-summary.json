@@ -1,5 +1,8 @@
 {
-  "run_dir": "/home/amd/Desktop/lsa-rocm-eval-starter/results/20261105T145917Z",
+  "run_dir": "/home/amd/Desktop/lsa-rocm-eval-starter/results/20261105T230036Z",
+  "run_id": "20261105T230036Z",
+  "profile": "overnight",
+  "repo_head_sha": "82c891e2ea12700205fcdb56df343b9b3b6cb1c8",
   "upstream_sha": "5ebea732d639576d2a7579b0de40e6252f9001f5",
   "statuses": {
     "preflight": "PASS",

@@ -1,0 +1,13 @@
+{"gate": "A bucket build (Triton Ward vs torch oracle)", "rows": 64, "partition_equal": true, "first_mismatch_row": -1, "centroid_max_abs_err": 4.470348358154297e-08, "status": "PASS"}
+{"levels": 1, "gate": "A2 hierarchy pairing (Triton vs torch, same device)", "status": "PASS"}
+{"gate": "B1 flat select exact (fp32 scoring)", "rows": 512, "rows_set_equal": 512, "rows_set_equal_frac": 1.0, "recall_mean": 1.0, "recall_min": 1.0, "precision_mean": 1.0, "status": "PASS"}
+{"gate": "B2 flat select recall (bf16 production scoring; mean >= 0.999)", "rows": 512, "rows_set_equal": 510, "rows_set_equal_frac": 0.99609375, "recall_mean": 0.9999103156887755, "recall_min": 0.9591836734693877, "precision_mean": 0.9999103156887755, "status": "PASS"}
+{"gate": "C tree select exact (port beam vs reference walk, same tree)", "rows": 512, "rows_set_equal": 512, "rows_set_equal_frac": 1.0, "recall_mean": 1.0, "recall_min": 1.0, "precision_mean": 1.0, "status": "PASS"}
+{"gate": "D1 sparse read vs quadratic oracle (torch.float32)", "max_abs_error": 4.470348358154297e-08, "atol": 0.0001, "status": "PASS"}
+{"gate": "D2 full select == dense SDPA (torch.float32)", "max_abs_vs_sdpa": 4.470348358154297e-08, "max_abs_vs_quadratic_oracle": 4.470348358154297e-08, "atol": 0.0001, "status": "PASS"}
+{"gate": "D1 sparse read vs quadratic oracle (torch.float16)", "max_abs_error": 1.52587890625e-05, "atol": 0.005, "status": "PASS"}
+{"gate": "D2 full select == dense SDPA (torch.float16)", "max_abs_vs_sdpa": 0.000244140625, "max_abs_vs_quadratic_oracle": 1.52587890625e-05, "atol": 0.005, "status": "PASS"}
+{"gate": "D1 sparse read vs quadratic oracle (torch.bfloat16)", "max_abs_error": 0.0001220703125, "atol": 0.02, "status": "PASS"}
+{"gate": "D2 full select == dense SDPA (torch.bfloat16)", "max_abs_vs_sdpa": 0.001953125, "max_abs_vs_quadratic_oracle": 6.103515625e-05, "atol": 0.02, "status": "PASS"}
+{"gate": "E decode step == whole prefill row", "selection_equal": true, "max_abs_error": 0.0, "status": "PASS"}
+{"gate": "F GQA D1 sparse read vs quadratic oracle (torch.bfloat16)", "max_abs_error": 0.000244140625, "atol": 0.02, "status": "PASS"}

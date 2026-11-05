@@ -12,9 +12,20 @@ runtime from AMD's pip wheels, PyTorch `2.14.0+rocm10.1.0`, Triton
 hierarchy pairing), the top-k listing and rank-order expansion run **upstream's own
 Triton kernels** on the Radeon GPU; the sparse read — which upstream delegates to
 NVIDIA-only attention backends — is a **Triton gather-attention kernel written for
-this port**; every path is held to upstream's pure-PyTorch oracle by a 13-gate
-correctness suite. Benchmarks compare dense SDPA, a positional block-sparse arm,
+this port**; every path is held to upstream's pure-PyTorch oracle by a 16-gate
+correctness suite (manifest-enforced: a skipped or short suite can never validate
+a receipt). Benchmarks compare dense SDPA, a positional block-sparse arm,
 D-LSA Flat and D-LSA Tree on matched shapes with synchronized timings.
+
+**Headline (v0.2.1, corrected decode baseline; median of 3 independent runs):**
+decode select+read at 32k ctx, bf16 — **block-sparse 3.9×**, **D-LSA Flat
+2.1×** (spread 1.5–2.4×), D-LSA Tree **0.9× (not faster than dense)**; prefill
+remains slower than dense at ≤32k (0.19×). Full receipt-generated tables:
+[`docs/BENCHMARKS.md`](docs/BENCHMARKS.md). **All v0.2.0 decode speedups are
+superseded** — the v0.2.0 dense-decode baseline masked a single-token query to
+key 0 and was ~2.8× slower than the correct dispatch, inflating every old
+speedup ([`docs/RESULTS_v0.2.0.md`](docs/RESULTS_v0.2.0.md),
+[`docs/REVIEW_v0.2.1.md`](docs/REVIEW_v0.2.1.md)).
 
 **What is explicitly not claimed:** end-to-end SGLang serving on gfx1151 (BLOCKED,
 with documented causes — see the report), any NVIDIA paper number as a Radeon
@@ -42,11 +53,12 @@ Then, in order:
 python -m lsa_rocm_lab.preflight              # hardware/toolchain manifest (hard checks)
 python -m lsa_rocm_lab.correctness            # upstream reference == dense SDPA on GPU
 python -m lsa_rocm_lab.triton_probe           # Triton HIP JIT smoke (not LSA)
-bash scripts/run_upstream_kernel_tests.sh     # upstream's Triton kernel tests, on ROCm
-python -m lsa_rocm_lab.port.gates             # the port's 13-gate oracle parity suite
+bash scripts/run_upstream_kernel_tests.sh     # upstream's Triton kernel tests, triaged on ROCm
+python -m lsa_rocm_lab.port.gates             # the port's 16-gate oracle parity suite
 python -m lsa_rocm_lab.kernel_adapter         # matched benchmarks + validated receipt
 python -m lsa_rocm_lab.run --quick            # starter stage chain (BLOCKED-safe)
 bash scripts/campaign.sh                      # bounded campaign: pilot + overnight profile
+bash scripts/repeat_bench.sh                  # 3 independent repetitions, strategic shapes
 python -m pytest tests/ -v                    # the repository's own tests
 ```
 
@@ -90,11 +102,15 @@ as such.
 src/lsa_rocm_lab/
   preflight.py correctness.py dense_baseline.py triton_probe.py run.py   # starter stages
   kernel_adapter.py            # LSA_ROCM_KERNEL_CMD target: gates + matched benchmarks + receipt
+  gate_manifest.py             # the required-gate manifest (fail-closed receipts, both ends)
+  upstream_triage.py           # upstream-test triage: classified failures visible, new ones fatal
   port/                        # the ROCm port layer (pipeline, read kernel, tree beam, gates, bench)
-scripts/                       # checkout, upstream kernel tests, campaign, telemetry, upstream watch
+scripts/                       # checkout, upstream triage, campaign, repetitions, tables, watch
 schemas/metrics.schema.json    # versioned receipt schema
 tracking/UPSTREAM_BASELINE.json# reviewed upstream SHA (moved only after ROCm review)
-docs/                          # EVALUATION_PLAN, PORT_CONTRACT, CODEX_MISSION
+docs/BENCHMARKS.md             # GENERATED headline tables (validated receipts only)
+docs/RESULTS_v0.2.0.md         # superseded v0.2.0 numbers, kept for the audit trail
+docs/REVIEW_v0.2.1.md          # independent review report + GO/NO-GO
 tests/                         # gate wrappers + contract tests
 ```
 

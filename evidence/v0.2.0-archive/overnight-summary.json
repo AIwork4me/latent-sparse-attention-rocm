@@ -1,0 +1,13 @@
+{
+  "run_dir": "/home/amd/Desktop/lsa-rocm-eval-starter/results/20261105T145917Z",
+  "upstream_sha": "5ebea732d639576d2a7579b0de40e6252f9001f5",
+  "statuses": {
+    "preflight": "PASS",
+    "reference_correctness": "PASS",
+    "triton_hip_probe": "PASS",
+    "dense_prefill_baseline": "PASS",
+    "lsa_rocm_kernel": "PASS",
+    "lsa_rocm_end_to_end": "BLOCKED"
+  },
+  "claimable_lsa_speedup": true
+}
