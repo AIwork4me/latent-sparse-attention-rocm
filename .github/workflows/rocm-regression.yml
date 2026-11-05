@@ -6,30 +6,43 @@ on:
   pull_request:
 
 # Requires a self-hosted runner on the AMD Ryzen AI MAX+ PRO 395 (gfx1151) host
-# with the ROCm 10.1 venv prepared per README. No results are published from CI;
-# artifacts carry the receipts for review.
+# (labels: rocm, gfx1151). The ROCm 10.1 venv lives outside the workspace at
+# $HOME/Desktop/lsa-rocm-eval-starter/.venv (exact torch 2.14.0+rocm10.1.0
+# stack, per README); PYTHONPATH points it at THIS checkout's src so the gates
+# always test the PR's code, never the editable install of the main checkout.
+# No results are published from CI; artifacts carry the receipts for review.
 jobs:
   gates-and-kernels:
     runs-on: [self-hosted, linux, rocm, gfx1151]
     timeout-minutes: 120
+    env:
+      PYTHONPATH: ${{ github.workspace }}/src
     steps:
       - uses: actions/checkout@v4
+      - name: Locate the ROCm venv (exact-pinned, outside the workspace)
+        run: |
+          PY="$HOME/Desktop/lsa-rocm-eval-starter/.venv/bin/python"
+          test -x "$PY" || { echo "::error::ROCm venv missing at $PY (see README quick start)"; exit 1; }
+          "$PY" -c "import torch; assert torch.cuda.is_available() and torch.version.hip, 'no ROCm GPU visible'"
+          echo "PYTHON=$PY" >> "$GITHUB_ENV"
       - name: Pin the upstream checkout
         run: bash scripts/checkout_upstream.sh
       - name: Environment preflight (read-only)
-        run: .venv/bin/python -m lsa_rocm_lab.preflight
+        run: '"$PYTHON" -m lsa_rocm_lab.preflight'
       - name: Upstream Triton kernel tests on ROCm (triaged: unclassified failures fail)
         run: bash scripts/run_upstream_kernel_tests.sh
       - name: Port correctness gates (16/16 required, manifest-enforced)
-        run: .venv/bin/python -m lsa_rocm_lab.port.gates
+        run: '"$PYTHON" -m lsa_rocm_lab.port.gates'
       - name: Repository unit tests
-        run: .venv/bin/python -m pytest tests/ -v
+        run: '"$PYTHON" -m pytest tests/ -v'
       - name: Small matched benchmark receipt (no speedup published from CI)
         env:
           LSA_MAX_CONTEXT: "2048"
           LSA_REPS: "10"
           LSA_STAGE_RECEIPT: /tmp/ci-kernel-receipt.json
-        run: .venv/bin/python -m lsa_rocm_lab.kernel_adapter
+        run: '"$PYTHON" -m lsa_rocm_lab.kernel_adapter'
+      - name: Receipt must validate (fail-closed evidence in CI too)
+        run: '"$PYTHON" scripts/validate_ci_receipt.py /tmp/ci-kernel-receipt.json third_party/upstream.sha'
       - name: Upload receipt
         if: always()
         uses: actions/upload-artifact@v4
