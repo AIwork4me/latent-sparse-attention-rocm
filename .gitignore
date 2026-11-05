@@ -7,3 +7,4 @@ results/
 *.pt
 *.safetensors
 .env
+src/*.egg-info/
