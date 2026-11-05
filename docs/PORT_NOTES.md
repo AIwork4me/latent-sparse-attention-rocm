@@ -101,3 +101,16 @@ A future E2E path that does not fake arming: SGLang's triton attention backend
   power-iteration tolerances — NVIDIA precisions / RDNA numerical divergence
   (marginal, 1.6% of elements at 8.5e-5 on the shape path, which the port does
   not use: unshaped buckets only).
+
+## 8. is_causal alignment on non-square Q/KV (found in the v0.2.1 audit)
+
+`F.scaled_dot_product_attention(is_causal=True)` builds a **top-left**-aligned
+lower-triangular mask: row `i` sees column `j <= i`. For `q_len == 1` against a
+full cache that masks the single decode row to **key 0 only** — wrong output
+(max abs err 2.44 vs the prefill's last row at 4k bf16) *and* a different (here,
+~2.8× slower at 32k) dispatch than the correct full-attention path. Non-square
+decode shapes need bottom-right alignment: key `j` is visible to chunk row `i`
+iff `j <= (kv_len - q_len) + i`. `pipeline.dense_read` now encodes exactly that
+(square → fused causal; 1 row → unmasked; chunk → explicit mask), and gate G +
+`tests/test_dense_read.py` pin it. Rule for any future baseline: never pass
+`is_causal=True` when `q_len != kv_len`.
