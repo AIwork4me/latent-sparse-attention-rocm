@@ -133,7 +133,7 @@ def main():
             try:
                 started=time.monotonic()
                 receipt=folder/'receipts'/(name+'.json')
-                env={**os.environ,'LSA_UPSTREAM':str(upstream),'LSA_STAGE_RECEIPT':str(receipt),'LSA_UPSTREAM_SHA':sha}
+                env={**os.environ,'LSA_UPSTREAM':str(upstream),'LSA_STAGE_RECEIPT':str(receipt),'LSA_UPSTREAM_SHA':sha,'LSA_RUN_ID':timestamp}
                 with open(folder/(name+'.log'),'w') as log:
                     proc=subprocess.Popen(cmd,cwd=ROOT,text=True,stdout=log,stderr=subprocess.STDOUT,env=env,start_new_session=True)
                     try:

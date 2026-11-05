@@ -2,6 +2,55 @@
 
 All notable changes to this repository. Dates are UTC.
 
+## [0.2.1] — 2026-11-06
+
+Scientific validity closure: the decode baseline defect, fail-closed evidence,
+and re-run benchmarks. **All v0.2.0 decode-phase speedups are superseded** — see
+`docs/RESULTS_v0.2.0.md` for why and `docs/BENCHMARKS.md` for the corrected,
+receipt-generated tables.
+
+### Fixed
+- **Dense decode baseline attended only key 0.** `dense_read` passed
+  `is_causal=True` unconditionally; for a 1-row query against the full cache the
+  top-left-aligned mask hides all but the first key (max abs error 2.44 vs the
+  prefill's last row). Query rows are now the tail `q_len` positions of the
+  cache: square → fused causal; one row → full attention; a chunk → explicit
+  bottom-right-aligned mask; `q_len > kv_len` raises. The defective path was
+  also ~2.8× slower than the correct dispatch at 32k, so v0.2.0 decode speedups
+  were overstated on both counts.
+- **A skipped gate suite could produce a claimable receipt.** `--skip-gates`
+  computed `correctness_pass = all([]) = True`. Now a shared, torch-free gate
+  manifest (`lsa_rocm_lab.gate_manifest`) is enforced at both ends: the adapter
+  writes `status: UNVERIFIED` / `correctness_pass: false` and the runner's
+  `validate_receipt` independently rejects UNVERIFIED, empty, short, renamed,
+  duplicated or failed gate lists.
+- **Kernel-stage failures no longer exit the campaign green.** The stage-chain
+  exit code ignored the kernel stage entirely; `campaign_exit_code` now fails on
+  any mandatory stage FAIL/TIMEOUT, kernel included whenever an adapter ran.
+
+### Added
+- Gate G (dense decode/chunk == prefill tail, per dtype) — release-blocking,
+  13 → 16 gates, every gate carries a stable `gate_id`.
+- Release-blocking parity tests (`tests/test_dense_read.py`) incl. non-square
+  multi-token chunks with absolute-position semantics.
+- Upstream-failure triage: all 7 known failures reproduced and classified with
+  exact evidence (`evidence/upstream-test-classification.json`); unclassified
+  failures fail CI, classified ones stay fully visible.
+- Reproducibility: receipts record run id, repo HEAD SHA, device, exact command;
+  run trees gain run_id/profile/hostname; `scripts/repeat_bench.sh` runs three
+  independent repetitions for strategic shapes with a validated aggregation
+  report; `scripts/render_tables.py` generates every headline table from
+  validated receipts only.
+- `bench_dense_decode(query_len=…)` — speculative-decode chunk timing on the
+  same semantics; `kernel_adapter --contexts/--phases` for repetition runs.
+
+### Changed
+- v0.2.0 benchmark claims moved to `docs/RESULTS_v0.2.0.md`, marked SUPERSEDED.
+- `schemas/metrics.schema.json`: `UNVERIFIED` status, boolean
+  `correctness_pass`, `gate_id` required, `gates_skipped` optional.
+- Benchmarks re-run end-to-end on the corrected baseline (bf16 + fp16 matrices,
+  three independent repetitions) — do not compare v0.2.0 numbers with these.
+
 ## [0.2.0] — 2026-11-05
 
 The first release with a genuine ROCm-native LSA path.
