@@ -89,12 +89,18 @@ def bench_dense_prefill(q, k, v, clock: Clock) -> dict:
     return {"method": "dense_sdpa", "phase": "prefill", **clock.time(fn)}
 
 
-def bench_dense_decode(q, k, v, clock: Clock) -> dict:
-    """Dense decode - one query row against the whole cache."""
+def bench_dense_decode(q, k, v, clock: Clock, query_len: int = 1) -> dict:
+    """Dense decode - the cache's last ``query_len`` rows against the whole cache.
+
+    ``query_len=1`` is the serving decode step; ``dense_read`` gives it full
+    attention over the cache (the v0.2.0 harness's ``is_causal=True`` masked it
+    to key 0 - see gate G). ``query_len>1`` times a speculative-decoding chunk on
+    the same absolute-position semantics.
+    """
     scale = q.shape[-1] ** -0.5
-    last = q[:, -1:]
-    fn = lambda: pipeline.dense_read(last, k, v, scale)
-    return {"method": "dense_sdpa", "phase": "decode", **clock.time(fn)}
+    tail = q[:, -query_len:]
+    fn = lambda: pipeline.dense_read(tail, k, v, scale)
+    return {"method": "dense_sdpa", "phase": "decode", "query_len": query_len, **clock.time(fn)}
 
 
 def lsa_index_build(q, k, config: PortConfig):

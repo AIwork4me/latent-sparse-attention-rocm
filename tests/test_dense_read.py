@@ -101,3 +101,32 @@ def test_dense_query_longer_than_cache_rejected():
     q, k, v = geometry(torch.float32, T=64)
     with pytest.raises(ValueError):
         pipeline.dense_read(q, k[:, :32], v[:, :32], q.shape[-1] ** -0.5)
+
+
+@pytest.mark.parametrize(
+    "dtype", [torch.float32, torch.float16, torch.bfloat16], ids=["fp32", "fp16", "bf16"]
+)
+@gpu
+def test_gate_g_dense_parity_passes(dtype):
+    """Gate G is release-blocking: dense decode/chunk tails == prefill tails."""
+    from lsa_rocm_lab.port.gates import gate_g_dense_parity
+
+    q, k, v = geometry(dtype, T=512)
+    verdict = gate_g_dense_parity(q, k, v)
+    short = {torch.float32: "fp32", torch.float16: "fp16", torch.bfloat16: "bf16"}[dtype]
+    assert verdict["gate_id"] == f"G:{short}"
+    assert verdict["status"] == "PASS", verdict
+
+
+def test_run_all_gates_emits_required_gate_ids():
+    """The suite's gate ids are stable and machine-checkable (see gate_manifest)."""
+    from lsa_rocm_lab.gate_manifest import REQUIRED_GATE_IDS
+
+    assert REQUIRED_GATE_IDS == [
+        "A", "A2", "B1", "B2", "C",
+        "D1:fp32", "D2:fp32",
+        "D1:fp16", "D2:fp16",
+        "D1:bf16", "D2:bf16",
+        "E", "F",
+        "G:fp32", "G:fp16", "G:bf16",
+    ]

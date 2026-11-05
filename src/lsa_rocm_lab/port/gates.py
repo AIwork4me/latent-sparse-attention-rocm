@@ -17,6 +17,13 @@ Gate index:
   D2 full select         sparse read over all keys vs dense SDPA               allclose (the design's anchor)
   E  decode step         one decode position vs whole-prefill select+read      exact selection + tolerance
   F  GQA geometry        Hq != Hkv through ``index_space.regroup``             D1 on a grouped shape
+  G  dense decode parity dense decode/chunk tails vs square-prefill tails      allclose per dtype
+                                      (release-blocking: the v0.2.0 decode baseline
+                                       masked a 1-row query to key 0 via is_causal)
+
+Every gate dict carries a stable ``gate_id``; ``gate_manifest.REQUIRED_GATE_IDS``
+is the exact set a valid receipt must show (a skipped or short suite can never
+validate - fail-closed by construction).
 """
 
 import json
@@ -35,6 +42,8 @@ TOLERANCES = {
     torch.float16: (5e-3, 5e-3),
     torch.bfloat16: (2e-2, 2e-2),
 }
+
+DTYPE_NAME = {torch.float32: "fp32", torch.float16: "fp16", torch.bfloat16: "bf16"}
 
 
 def make_index_space(q: torch.Tensor, k: torch.Tensor):
@@ -120,6 +129,7 @@ def gate_a_bucket_build(keys: torch.Tensor, config: PortConfig) -> dict:
     centroid_err = float((port.centroids_f32.cpu() - oracle.bucket_centroids).abs().max())
     ok = same_partition and centroid_err < 1e-5
     return {
+        "gate_id": "A",
         "gate": "A bucket build (Triton Ward vs torch oracle)",
         "rows": port.rows,
         "partition_equal": bool(same_partition),
@@ -174,6 +184,7 @@ def gate_a2_hierarchy_build(keys: torch.Tensor, config: PortConfig) -> dict:
         ).flatten()
         key_sums = key_sums[order].view(-1, config.node_bucket_size, key_sums.shape[1]).sum(1)
         detail["levels"] += 1
+    detail["gate_id"] = "A2"
     detail["gate"] = "A2 hierarchy pairing (Triton vs torch, same device)"
     detail["status"] = status
     return detail
@@ -194,14 +205,14 @@ def gate_b_flat_select(keys, queries, positions, config: PortConfig, score_dtype
     )
     stats = set_stats(port_lists.cpu(), selected.cpu())
     if score_dtype == "fp32":
-        name = "B1 flat select exact (fp32 scoring)"
+        name, gate_id = "B1 flat select exact (fp32 scoring)", "B1"
         ok = stats["rows_set_equal"] == stats["rows"]
     else:
         # bf16 production scoring rounds scores near ties into different top-p picks
         # than the fp32 oracle - a measurement gate, with the worst row published
-        name = "B2 flat select recall (bf16 production scoring; mean >= 0.999)"
+        name, gate_id = "B2 flat select recall (bf16 production scoring; mean >= 0.999)", "B2"
         ok = stats["recall_mean"] >= 0.999 and stats["precision_mean"] >= 0.999
-    return {"gate": name, **stats, "status": "PASS" if ok else "FAIL"}
+    return {"gate_id": gate_id, "gate": name, **stats, "status": "PASS" if ok else "FAIL"}
 
 
 def gate_c_tree_select(keys, queries, positions, config: PortConfig) -> dict:
@@ -243,7 +254,8 @@ def gate_c_tree_select(keys, queries, positions, config: PortConfig) -> dict:
     port_lists, _ = pipeline.tree_select(queries, positions, gpu_buckets, gpu_hierarchy, config)
     stats = set_stats(port_lists.cpu(), walk_selected)
     ok = stats["rows_set_equal"] == stats["rows"]
-    return {"gate": "C tree select exact (port beam vs reference walk, same tree)",
+    return {"gate_id": "C",
+            "gate": "C tree select exact (port beam vs reference walk, same tree)",
             **stats, "status": "PASS" if ok else "FAIL"}
 
 
@@ -276,6 +288,7 @@ def gate_d_sparse_read(q, k, v, config: PortConfig) -> dict:
     err = float((port.float() - oracle.float()).abs().max())
     ok = bool(torch.allclose(port.float(), oracle.float(), atol=atol, rtol=rtol))
     return {
+        "gate_id": f"D1:{DTYPE_NAME[q.dtype]}",
         "gate": f"D1 sparse read vs quadratic oracle ({q.dtype})",
         "max_abs_error": err,
         "atol": atol,
@@ -306,6 +319,7 @@ def gate_d2_full_select(q, k, v) -> dict:
         torch.allclose(port.float(), oracle.float(), atol=atol, rtol=rtol)
     )
     return {
+        "gate_id": f"D2:{DTYPE_NAME[q.dtype]}",
         "gate": f"D2 full select == dense SDPA ({q.dtype})",
         "max_abs_vs_sdpa": err_sdpa,
         "max_abs_vs_quadratic_oracle": err_oracle,
@@ -331,6 +345,7 @@ def gate_e_decode_step(q, k, v, config: PortConfig) -> dict:
     selection_equal = bool(torch.equal(step_lists[0].cpu(), whole_lists[last].cpu()))
     err = float((step.float() - whole[:, last : last + 1].float()).abs().max())
     return {
+        "gate_id": "E",
         "gate": "E decode step == whole prefill row",
         "selection_equal": selection_equal,
         "max_abs_error": err,
@@ -341,7 +356,38 @@ def gate_e_decode_step(q, k, v, config: PortConfig) -> dict:
 def gate_f_gqa(q, k, v, config: PortConfig) -> dict:
     """F: a grouped shape (Hq != Hkv) reads through the right KV head."""
     result = gate_d_sparse_read(q, k, v, config)
-    return {"gate": "F GQA " + result["gate"], **{k_: v_ for k_, v_ in result.items() if k_ != "gate"}}
+    return {"gate_id": "F", "gate": "F GQA " + result["gate"],
+            **{k_: v_ for k_, v_ in result.items() if k_ not in ("gate", "gate_id")}}
+
+
+def gate_g_dense_parity(q, k, v) -> dict:
+    """G: the dense baseline's decode and chunk rows equal the square prefill's tails.
+
+    Release-blocking since v0.2.1: the v0.2.0 harness timed ``dense_read`` on a
+    single query with ``is_causal=True``, which masks that row to key 0 (top-left
+    alignment) - semantically wrong output *and* a mis-dispatched baseline every
+    decode speedup divided by. Gate G pins both shapes to the square prefill.
+    """
+    B, T, Hq, D = q.shape
+    scale = D**-0.5
+    prefill = pipeline.dense_read(q, k, v, scale)
+    decode = pipeline.dense_read(q[:, -1:], k, v, scale)
+    chunk = min(16, T)
+    tail = pipeline.dense_read(q[:, -chunk:], k, v, scale)
+    atol, rtol = TOLERANCES[q.dtype]
+    ok_decode = bool(torch.allclose(decode.float(), prefill[:, -1:].float(), atol=atol, rtol=rtol))
+    ok_tail = bool(torch.allclose(tail.float(), prefill[:, -chunk:].float(), atol=atol, rtol=rtol))
+    err_decode = float((decode.float() - prefill[:, -1:].float()).abs().max())
+    err_tail = float((tail.float() - prefill[:, -chunk:].float()).abs().max())
+    return {
+        "gate_id": f"G:{DTYPE_NAME[q.dtype]}",
+        "gate": f"G dense decode/chunk == prefill tail ({q.dtype})",
+        "decode_max_abs_error": err_decode,
+        "chunk_rows": chunk,
+        "chunk_max_abs_error": err_tail,
+        "atol": atol,
+        "status": "PASS" if ok_decode and ok_tail else "FAIL",
+    }
 
 
 def run_all_gates(seed: int = 20261105) -> list[dict]:
@@ -374,6 +420,8 @@ def run_all_gates(seed: int = 20261105) -> list[dict]:
     results.append(gate_e_decode_step(q.float(), k.float(), v.float(), config))
     q8 = torch.randn(1, T, 8, D, device=device) * 0.2
     results.append(gate_f_gqa(q8.bfloat16(), k.bfloat16(), v.bfloat16(), config))
+    for dtype in (torch.float32, torch.float16, torch.bfloat16):
+        results.append(gate_g_dense_parity(q.to(dtype), k.to(dtype), v.to(dtype)))
     return results
 
 
