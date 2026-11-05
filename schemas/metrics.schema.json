@@ -6,8 +6,9 @@
   "required": ["kind", "status", "correctness_pass", "upstream_sha", "gpu_arch", "comparisons"],
   "properties": {
     "kind": {"const": "lsa_rocm_kernel"},
-    "status": {"enum": ["PASS", "FAIL"]},
-    "correctness_pass": {"const": true},
+    "status": {"enum": ["PASS", "FAIL", "UNVERIFIED"]},
+    "correctness_pass": {"type": "boolean"},
+    "gates_skipped": {"type": "boolean"},
     "upstream_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
     "gpu_arch": {"type": "string", "pattern": "^gfx1151"},
     "torch": {"type": "string"},
@@ -15,8 +16,9 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["gate", "status"],
+        "required": ["gate_id", "gate", "status"],
         "properties": {
+          "gate_id": {"type": "string"},
           "gate": {"type": "string"},
           "status": {"enum": ["PASS", "FAIL"]}
         }

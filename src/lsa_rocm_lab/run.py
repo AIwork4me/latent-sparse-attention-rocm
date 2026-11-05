@@ -11,6 +11,8 @@ import subprocess
 import sys
 import time
 
+from lsa_rocm_lab.gate_manifest import describe, verdict_of
+
 ROOT=Path(__file__).resolve().parents[2]
 
 def digest(path):
@@ -30,17 +32,29 @@ def stage_command(name, quick):
     raise ValueError(name)
 
 def validate_receipt(receipt, stage, upstream_sha):
-    """Require real machine-readable evidence from an externally implemented adapter."""
+    """Require real machine-readable evidence from an externally implemented adapter.
+
+    Fail-closed since v0.2.1: a PASS kernel receipt must carry exactly the
+    required correctness gates (``gate_manifest``), each PASS - a skipped or
+    empty suite (status UNVERIFIED) is rejected here, whatever the adapter exited.
+    """
     if not receipt.is_file():
         raise ValueError('Adapter returned zero but wrote no validation receipt')
     data=json.loads(receipt.read_text())
-    if data.get('kind')!=stage or data.get('status')!='PASS' or data.get('correctness_pass') is not True:
-        raise ValueError('Receipt lacks required kind/PASS/correctness gates')
+    if data.get('kind')!=stage:
+        raise ValueError('Receipt kind does not match the stage')
+    if data.get('status')=='UNVERIFIED':
+        raise ValueError('UNVERIFIED receipt (correctness gates skipped): not claimable')
+    if data.get('status')!='PASS' or data.get('correctness_pass') is not True:
+        raise ValueError('Receipt lacks required PASS/correctness gates')
     if upstream_sha=='UNAVAILABLE' or data.get('upstream_sha')!=upstream_sha:
         raise ValueError('Missing/mismatched upstream source SHA')
     if not str(data.get('gpu_arch','')).startswith('gfx1151'):
         raise ValueError('Adapter result not tied to gfx1151')
     if stage=='lsa_rocm_kernel':
+        verdict=verdict_of(data.get('gates') or [])
+        if not verdict['ok']:
+            raise ValueError('Gate manifest mismatch ('+describe(verdict)+')')
         cases=data.get('comparisons',[])
         if not cases:raise ValueError('Empty real kernel benchmark comparisons')
         for case in cases:

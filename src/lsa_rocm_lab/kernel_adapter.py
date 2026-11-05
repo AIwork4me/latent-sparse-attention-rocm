@@ -14,6 +14,7 @@ import sys
 
 import torch
 
+from lsa_rocm_lab.gate_manifest import describe, verdict_of
 from lsa_rocm_lab.port import pipeline, upstream_sha
 from lsa_rocm_lab.port.bench import (
     Clock,
@@ -49,6 +50,22 @@ def memory_of(fn) -> tuple:
     out = fn()
     torch.cuda.synchronize()
     return torch.cuda.max_memory_allocated() - before, out
+
+
+def gates_summary(gates: list[dict] | None, skipped: bool) -> dict:
+    """Fail-closed gate posture for the receipt - never vacuously True.
+
+    ``--skip-gates`` yields ``status="UNVERIFIED"``/``correctness_pass=False``:
+    the benchmark rows may exist, but no speedup from them is claimable. A run
+    suite is only True when it is exactly ``gate_manifest.REQUIRED_GATE_IDS``
+    with every verdict PASS - an empty, short, renamed or failed list never is.
+    """
+    if skipped:
+        return {"correctness_pass": False, "status": "UNVERIFIED", "gates_skipped": True,
+                "reason": "correctness gates skipped by --skip-gates: benchmark UNVERIFIED"}
+    verdict = verdict_of(gates or [])
+    return {"correctness_pass": verdict["ok"], "status": "PASS" if verdict["ok"] else "FAIL",
+            "gates_skipped": False, "reason": describe(verdict)}
 
 
 def run_matrix(clock: Clock, max_context: int, dtype_name: str, seed: int) -> tuple[list[dict], list[dict]]:
@@ -126,12 +143,15 @@ def main() -> int:
         print(json.dumps({"status": "BLOCKED", "reason": f"not gfx1151: {arch}"}))
         return 78
 
-    gates = [] if args.skip_gates else run_all_gates(seed=args.seed)
-    correctness_pass = all(g["status"] == "PASS" for g in gates)
-    for gate in gates:
-        print(json.dumps(gate), flush=True)
-    if not correctness_pass:
-        print(json.dumps({"status": "FAIL", "reason": "correctness gates failed"}), flush=True)
+    gates = None
+    if not args.skip_gates:
+        gates = run_all_gates(seed=args.seed)
+        for gate in gates:
+            print(json.dumps(gate), flush=True)
+    summary = gates_summary(gates, args.skip_gates)
+    if gates is not None and not summary["correctness_pass"]:
+        # A run suite that is short/renamed/failed never proceeds to a benchmark claim
+        print(json.dumps({"status": "FAIL", "reason": summary["reason"]}), flush=True)
         return 1
 
     clock = Clock(warmup=args.warmup, reps=args.reps)
@@ -139,14 +159,17 @@ def main() -> int:
     for row in stages:
         print(json.dumps(row), flush=True)
 
+    # Skipped gates: the rows are real timings but carry no verified-correct claim -
+    # the receipt says UNVERIFIED and run.validate_receipt refuses it (fail-closed)
     receipt = {
         "kind": "lsa_rocm_kernel",
-        "status": "PASS" if comparisons else "FAIL",
-        "correctness_pass": True,
+        "status": summary["status"] if comparisons else "FAIL",
+        "correctness_pass": summary["correctness_pass"],
+        "gates_skipped": summary["gates_skipped"],
         "upstream_sha": os.getenv("LSA_UPSTREAM_SHA", upstream_sha()),
         "gpu_arch": arch,
         "torch": torch.__version__,
-        "gates": gates,
+        "gates": gates or [],
         "stages": stages,
         "comparisons": comparisons,
         "env": {"dtype": args.dtype, "reps": args.reps, "warmup": args.warmup, "seed": args.seed},
@@ -158,7 +181,11 @@ def main() -> int:
     if not comparisons:
         print(json.dumps({"status": "FAIL", "reason": "no matched comparisons produced"}), flush=True)
         return 1
-    print(json.dumps({"status": "PASS", "comparisons": len(comparisons)}), flush=True)
+    print(json.dumps({"status": summary["status"],
+                      "comparisons": len(comparisons),
+                      "claimable": summary["correctness_pass"]}), flush=True)
+    # Exit 0: the benchmark itself completed. Claimability is the receipt's job -
+    # an UNVERIFIED receipt is rejected by run.validate_receipt whatever this code is.
     return 0
 
 
