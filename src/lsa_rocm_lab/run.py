@@ -67,6 +67,38 @@ def validate_receipt(receipt, stage, upstream_sha):
             raise ValueError('End-to-end adapter requires armed server, exact model and metrics')
 
 
+def repo_head_sha() -> str:
+    """This repository's HEAD SHA (provenance of the code that produced a run)."""
+    p=subprocess.run(['git','-C',str(ROOT),'rev-parse','HEAD'],capture_output=True,text=True)
+    return p.stdout.strip() if p.returncode==0 else 'UNAVAILABLE'
+
+
+MANDATORY_STAGES=('preflight','reference_correctness','triton_hip_probe','dense_prefill_baseline','lsa_rocm_kernel')
+
+
+def campaign_exit_code(statuses) -> int:
+    """Fail-closed campaign verdict - mandatory stages must not fail.
+
+    Every always-on stage that FAILs or TIMEOUTs fails the campaign; the kernel
+    stage additionally fails it whenever an adapter RAN and did not PASS (the
+    v0.2.0 exit code ignored kernel FAIL entirely). lsa_rocm_end_to_end is
+    optional evidence: BLOCKED without an adapter is a legitimate outcome, and a
+    failing adapter surfaces in its own receipt - it never silently greens this.
+    """
+    by={s['stage']:s for s in statuses}
+    for name in MANDATORY_STAGES:
+        if name not in by:
+            return 1
+        s=by[name]
+        if name!='lsa_rocm_kernel':
+            if s['status']!='PASS':
+                return 1
+        else:
+            if s.get('command') is not None and s['status'] in ('FAIL','TIMEOUT'):
+                return 1
+    return 0
+
+
 def main():
     ap=argparse.ArgumentParser()
     m=ap.add_mutually_exclusive_group(required=True)
@@ -79,7 +111,13 @@ def main():
     if (upstream/'.git').exists():
         p=subprocess.run(['git','-C',str(upstream),'rev-parse','HEAD'],capture_output=True,text=True)
         if p.returncode==0:sha=p.stdout.strip()
-    (folder/'run_meta.json').write_text(json.dumps({'started_utc':timestamp,'upstream_sha':sha,'command':sys.argv,'env':{'LSA_ROCM_KERNEL_CMD':os.getenv('LSA_ROCM_KERNEL_CMD',''),'LSA_ROCM_E2E_CMD':os.getenv('LSA_ROCM_E2E_CMD','')}},indent=2))
+    head=repo_head_sha()
+    meta={'run_id':timestamp,'started_utc':timestamp,'profile':'quick' if args.quick else 'overnight',
+          'repo_head_sha':head,'upstream_sha':sha,'hostname':os.uname().nodename,
+          'command':sys.argv,'env':{'LSA_ROCM_KERNEL_CMD':os.getenv('LSA_ROCM_KERNEL_CMD',''),
+                                    'LSA_ROCM_E2E_CMD':os.getenv('LSA_ROCM_E2E_CMD','')},
+          'user':os.environ.get('USER','')}
+    (folder/'run_meta.json').write_text(json.dumps(meta,indent=2))
     names=['preflight','reference_correctness','triton_hip_probe','dense_prefill_baseline','lsa_rocm_kernel','lsa_rocm_end_to_end']
     tmax={'preflight':120,'reference_correctness':1800,'triton_hip_probe':900,'dense_prefill_baseline':7200,'lsa_rocm_kernel':7200,'lsa_rocm_end_to_end':7200}
     (folder/'receipts').mkdir()
@@ -118,13 +156,16 @@ def main():
         statuses.append(status)
         with open(folder/'stages.jsonl','a') as f:f.write(json.dumps(status,ensure_ascii=False)+'\n')
         print(f"[{name}] {status['status']}",flush=True)
-    summary={'run_dir':str(folder),'upstream_sha':sha,'statuses':{s['stage']:s['status'] for s in statuses},'claimable_lsa_speedup':statuses[-2]['status']=='PASS' and correctness_ok}
+    summary={'run_dir':str(folder),'run_id':timestamp,'profile':meta['profile'],
+             'repo_head_sha':head,'upstream_sha':sha,
+             'statuses':{s['stage']:s['status'] for s in statuses},
+             'claimable_lsa_speedup':statuses[-2]['status']=='PASS' and correctness_ok}
     (folder/'summary.json').write_text(json.dumps(summary,indent=2))
-    (folder/'REPORT.md').write_text('# LSA Radeon Run\n\nUpstream SHA: `'+sha+'`\n\n|Stage|Status|\n|---|---|\n'+''.join(f"|{s['stage']}|{s['status']}|\n" for s in statuses)+'\nNo speedup is published by the starter harness. Real GPU LSA port and baseline-matched timing required.\n')
+    (folder/'REPORT.md').write_text('# LSA Radeon Run\n\nRun ID: `'+timestamp+'` · repo HEAD: `'+head+'` · upstream SHA: `'+sha+'`\n\n|Stage|Status|\n|---|---|\n'+''.join(f"|{s['stage']}|{s['status']}|\n" for s in statuses)+'\nNo speedup is published by the starter harness. Real GPU LSA port and baseline-matched timing required.\n')
     with open(folder/'SHA256SUMS','w') as out:
         for f in sorted(folder.rglob('*')):
             if f.is_file() and f.name!='SHA256SUMS':out.write(digest(f)+'  '+str(f.relative_to(folder))+'\n')
     print(json.dumps(summary,indent=2))
-    return 0 if preflight_ok and correctness_ok else 1
+    return campaign_exit_code(statuses)
 
 if __name__=='__main__':raise SystemExit(main())
