@@ -1,0 +1,10 @@
+[build-system]
+requires = ["setuptools>=70", "wheel"]
+build-backend = "setuptools.build_meta"
+[project]
+name = "lsa-rocm-lab"
+version = "0.2.0"
+description = "Reproducibility-first LSA ROCm gfx1151 benchmark harness"
+requires-python = ">=3.12,<3.13"
+[tool.setuptools.packages.find]
+where = ["src"]

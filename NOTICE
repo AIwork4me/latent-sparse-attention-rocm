@@ -1,0 +1,34 @@
+NOTICE for latent-sparse-attention-rocm
+======================================
+
+This project is an independent, non-official ROCm validation and port harness for
+Latent Sparse Attention (LSA).
+
+Upstream provenance
+-------------------
+The LSA algorithm, the pure-PyTorch reference implementations ("the oracle"), and
+the Triton kernels composed by this project are from:
+
+    Prefrontal-AI/latent-sparse-attention
+    https://github.com/Prefrontal-AI/latent-sparse-attention
+    pinned commit: see third_party/upstream.sha (validated: 5ebea732d639576d2a7579b0de40e6252f9001f5)
+
+    Copyright (c) Prefrontal AI, licensed under the Apache License, Version 2.0.
+
+The upstream checkout lives in third_party/latent-sparse-attention (git-ignored,
+fetched by scripts/checkout_upstream.sh) and is NEVER modified or redistributed in
+source form by this repository. Its CUDA/CuTe-DSL kernel paths are NVIDIA-only and
+are not used here; this project composes the upstream *Triton* kernels on ROCm and
+validates them against the upstream PyTorch oracle.
+
+Original work in this repository
+--------------------------------
+Copyright 2026 The latent-sparse-attention-rocm authors
+
+Including: the ROCm port layer (src/lsa_rocm_lab/port/), the Triton sparse
+gather-attention read kernel (src/lsa_rocm_lab/port/read_kernel.py), the
+correctness gate suite, the benchmark harness, and all documentation -
+licensed under the Apache License, Version 2.0.
+
+Benchmark results and reports in this repository were measured on the authors'
+hardware and are provided as-is for reproducibility.

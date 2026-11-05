@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+.pytest_cache/
+third_party/
+results/
+*.whl
+*.pt
+*.safetensors
+.env

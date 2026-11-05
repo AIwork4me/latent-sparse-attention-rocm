@@ -1,0 +1,39 @@
+name: ROCm gfx1151 regression (self-hosted)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+
+# Requires a self-hosted runner on the AMD Ryzen AI MAX+ PRO 395 (gfx1151) host
+# with the ROCm 10.1 venv prepared per README. No results are published from CI;
+# artifacts carry the receipts for review.
+jobs:
+  gates-and-kernels:
+    runs-on: [self-hosted, linux, rocm, gfx1151]
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pin the upstream checkout
+        run: bash scripts/checkout_upstream.sh
+      - name: Environment preflight (read-only)
+        run: .venv/bin/python -m lsa_rocm_lab.preflight
+      - name: Upstream Triton kernel tests on ROCm
+        run: bash scripts/run_upstream_kernel_tests.sh
+      - name: Port correctness gates (13/13 required)
+        run: .venv/bin/python -m lsa_rocm_lab.port.gates
+      - name: Repository unit tests
+        run: .venv/bin/python -m pytest tests/ -v
+      - name: Small matched benchmark receipt (no speedup published from CI)
+        env:
+          LSA_MAX_CONTEXT: "2048"
+          LSA_REPS: "10"
+          LSA_STAGE_RECEIPT: /tmp/ci-kernel-receipt.json
+        run: .venv/bin/python -m lsa_rocm_lab.kernel_adapter
+      - name: Upload receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-kernel-receipt
+          path: /tmp/ci-kernel-receipt.json
+          if-no-files-found: warn

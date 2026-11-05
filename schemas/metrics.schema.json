@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/AIwork4me/latent-sparse-attention-rocm/main/schemas/metrics.schema.json",
+  "title": "LSA ROCm kernel benchmark metrics",
+  "type": "object",
+  "required": ["kind", "status", "correctness_pass", "upstream_sha", "gpu_arch", "comparisons"],
+  "properties": {
+    "kind": {"const": "lsa_rocm_kernel"},
+    "status": {"enum": ["PASS", "FAIL"]},
+    "correctness_pass": {"const": true},
+    "upstream_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "gpu_arch": {"type": "string", "pattern": "^gfx1151"},
+    "torch": {"type": "string"},
+    "gates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["gate", "status"],
+        "properties": {
+          "gate": {"type": "string"},
+          "status": {"enum": ["PASS", "FAIL"]}
+        }
+      }
+    },
+    "stages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["method", "phase", "stage", "samples", "p50_ms", "p95_ms", "context", "dtype"],
+        "properties": {
+          "method": {"enum": ["dense_sdpa", "block_sparse", "lsa_flat", "lsa_tree"]},
+          "phase": {"enum": ["prefill", "decode"]},
+          "stage": {"type": "string"},
+          "samples": {"type": "integer", "minimum": 1},
+          "p50_ms": {"type": "number", "exclusiveMinimum": 0},
+          "p95_ms": {"type": "number", "exclusiveMinimum": 0},
+          "min_ms": {"type": "number"},
+          "max_ms": {"type": "number"},
+          "mad_ms": {"type": "number"},
+          "context": {"type": "integer", "minimum": 1},
+          "dtype": {"enum": ["fp16", "bf16"]},
+          "heads": {"type": "integer"},
+          "kv_heads": {"type": "integer"},
+          "dim": {"type": "integer"},
+          "top_k": {"type": "integer"},
+          "top_p": {"type": "integer"},
+          "window": {"type": "integer"},
+          "sink": {"type": "integer"},
+          "seed": {"type": "integer"},
+          "status": {"enum": ["OOM", "TIMEOUT", "ERROR"]}
+        }
+      }
+    },
+    "comparisons": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["context", "dtype", "phase", "method", "baseline_ms", "candidate_ms", "samples", "speedup"],
+        "properties": {
+          "context": {"type": "integer", "minimum": 1},
+          "dtype": {"enum": ["fp16", "bf16"]},
+          "phase": {"enum": ["prefill", "decode"]},
+          "method": {"enum": ["block_sparse", "lsa_flat", "lsa_tree"]},
+          "baseline_ms": {"type": "number", "exclusiveMinimum": 0},
+          "candidate_ms": {"type": "number", "exclusiveMinimum": 0},
+          "samples": {"type": "integer", "minimum": 10},
+          "speedup": {"type": "number", "exclusiveMinimum": 0},
+          "note": {"type": "string"}
+        }
+      }
+    }
+  }
+}

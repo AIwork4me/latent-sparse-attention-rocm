@@ -1,0 +1,35 @@
+{
+  "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+  "platform": "Linux-6.17.0-1033-oem-x86_64-with-glibc2.39",
+  "uname": {
+    "system": "Linux",
+    "node": "amd-HP-ZBook-Ultra",
+    "release": "6.17.0-1033-oem",
+    "version": "#33-Ubuntu SMP PREEMPT_DYNAMIC Mon Aug 24 05:45:54 UTC 2026",
+    "machine": "x86_64",
+    "processor": "x86_64"
+  },
+  "torch_version": "2.14.0+rocm10.1.0",
+  "torch_hip": "7.16.26385",
+  "cuda_is_available": true,
+  "rocm_smi": {
+    "returncode": 0,
+    "stdout": "\n\n============================ ROCm System Management Interface ============================\n====================================== Product Info ======================================\nGPU[0]\t\t: Card Series: \t\tAMD Radeon Graphics\nGPU[0]\t\t: Card Model: \t\t0x1586\nGPU[0]\t\t: Card Vendor: \t\tAdvanced Micro Devices, Inc. [AMD/ATI]\nGPU[0]\t\t: Card SKU: \t\tSTRXLGEN\nGPU[0]\t\t: Subsystem ID: \t-0x72ff\nGPU[0]\t\t: Device Rev: \t\t0xd1\nGPU[0]\t\t: Node ID: \t\t1\nGPU[0]\t\t: GUID: \t\t52257\nGPU[0]\t\t: GFX Version: \t\tgfx1151\n==========================================================================================\n================================== End of ROCm SMI Log ===================================\n",
+    "stderr": ""
+  },
+  "rocminfo": {
+    "returncode": 0,
+    "stdout": "                 BASE_PROFILE                       \n  Float Round Mode:        NEAR                               \n  Max Queue Number:        1(0x1)                             \n  Queue Min Size:          64(0x40)                           \n  Queue Max Size:          64(0x40)                           \n  Queue Type:              SINGLE                             \n  Node:                    0                                  \n  Device Type:             DSP                                \n  Cache Info:              \n    L2:                      2048(0x800) KB                     \n    L3:                      32768(0x8000) KB                   \n  Chip ID:                 0(0x0)                             \n  ASIC Revision:           0(0x0)                             \n  Cacheline Size:          0(0x0)                             \n  Max Clock Freq. (MHz):   0                                  \n  BDFID:                   0                                  \n  Internal Node ID:        0                                  \n  Compute Unit:            0                                  \n  SIMDs per CU:            0                                  \n  Shader Engines:          0                                  \n  Shader Arrs. per Eng.:   0                                  \n  WatchPts on Addr. Ranges:0                                  \n  Memory Properties:       \n  Features:                AGENT_DISPATCH\n  Pool Info:               \n    Pool 1                   \n      Segment:                 GLOBAL; FLAGS: KERNARG, COARSE GRAINED\n      Size:                    98634044(0x5e1093c) KB             \n      Allocatable:             TRUE                               \n      Alloc Granule:           4KB                                \n      Alloc Recommended Granule:4KB                                \n      Alloc Alignment:         4KB                                \n      Accessible by all:       TRUE                               \n    Pool 2                   \n      Segment:                 GLOBAL; FLAGS: COARSE GRAINED      \n      Size:                    65536(0x10000) KB                  \n      Allocatable:             TRUE                               \n      Alloc Granule:           4KB                                \n      Alloc Recommended Granule:0KB                                \n      Alloc Alignment:         4KB                                \n      Accessible by all:       TRUE                               \n    Pool 3                   \n      Segment:                 GLOBAL; FLAGS: COARSE GRAINED      \n      Size:                    98634044(0x5e1093c) KB             \n      Allocatable:             TRUE                               \n      Alloc Granule:           4KB                                \n      Alloc Recommended Granule:4KB                                \n      Alloc Alignment:         4KB                                \n      Accessible by all:       TRUE                               \n  ISA Info:                \n*** Done ***             \n",
+    "stderr": ""
+  },
+  "pip_freeze": {
+    "returncode": 0,
+    "stdout": "amd-torch-device-gfx1151==2.14.0+rocm10.1.0\namd-torch-device-gfx115x==2.14.0+rocm10.1.0\namd-torchvision-device-gfx1151==0.29.0a0+rocm10.1.0\nfilelock==4.0.8\nfsspec==2026.9.0\niniconfig==2.3.1\nJinja2==3.1.6\n# Editable install with no version control (lsa-rocm-lab==0.1.0)\n-e /home/amd/Desktop/lsa-rocm-eval-starter\nMarkupSafe==3.0.3\nmpmath==1.3.0\nnetworkx==3.7\nnumpy==2.5.3\npackaging==26.3\npillow==12.3.0\npluggy==1.7.0\nPygments==2.21.0\npytest==9.2.0\nrocm==10.1.0\nrocm-bootstrap==0.3.0\nrocm-sdk-core==10.1.0\nrocm-sdk-devel==10.1.0\nrocm-sdk-device-gfx1151==10.1.0\nrocm-sdk-libraries==10.1.0\nsetuptools==81.0.0\nsympy==1.14.0\ntorch==2.14.0+rocm10.1.0\ntorchaudio==2.11.0.3+rocm10.1.0\ntorchvision==0.29.0a0+rocm10.1.0\ntriton==3.8.0+git669b31ac.rocm10.1.0\ntyping_extensions==4.16.0\n",
+    "stderr": ""
+  },
+  "visible_devices": "",
+  "device_name": "AMD Radeon 8060S Graphics",
+  "gcnArchName": "gfx1151",
+  "total_memory_bytes": 107374182400,
+  "gpu_matmul_finite": true
+}

@@ -1,0 +1,8 @@
+Metadata-Version: 2.4
+Name: lsa-rocm-lab
+Version: 0.2.0
+Summary: Reproducibility-first LSA ROCm gfx1151 benchmark harness
+Requires-Python: <3.13,>=3.12
+License-File: LICENSE
+License-File: NOTICE
+Dynamic: license-file
