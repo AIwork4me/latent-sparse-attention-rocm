@@ -29,7 +29,7 @@ jobs:
         run: bash scripts/checkout_upstream.sh
       - name: Environment preflight (read-only)
         run: '"$PYTHON" -m lsa_rocm_lab.preflight'
-      - name: Upstream Triton kernel tests on ROCm (triaged: unclassified failures fail)
+      - name: "Upstream Triton kernel tests on ROCm (triaged; unclassified failures fail)"
         run: bash scripts/run_upstream_kernel_tests.sh
       - name: Port correctness gates (16/16 required, manifest-enforced)
         run: '"$PYTHON" -m lsa_rocm_lab.port.gates'
