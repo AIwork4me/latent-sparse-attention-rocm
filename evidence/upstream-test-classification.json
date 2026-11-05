@@ -1,0 +1,52 @@
+{
+  "manifest_version": 1,
+  "upstream_sha": "5ebea732d639576d2a7579b0de40e6252f9001f5",
+  "gpu_arch": "gfx1151",
+  "stack": "torch 2.14.0+rocm10.1.0, Triton 3.8.0+git669b31ac.rocm10.1.0",
+  "classified_at_utc": "2026-11-06T00:00:00Z",
+  "policy": "A failure listed here stays fully visible in every log; it is excluded from the pass/fail verdict ONLY with the reproducible reason recorded. Any failure NOT listed here fails the triage step and CI. A listed test that starts passing is reported as a note and removed at the next review.",
+  "tests": {
+    "tests/unit/core/test_ward_kernel.py::test_near_identical_buckets_are_all_paired_each_once": {
+      "classification": "UNSUPPORTED_PRECISION",
+      "reason": "Calls cluster_node_buckets() at its default dot precision tf32x3; AMD HIP's Triton compiler allows only ('ieee','bf16x3','bf16x6') and rejects compilation (gfx1151 has no tf32 tensor cores). NVIDIA-only by construction.",
+      "evidence": "AssertionError: input_precision must be one of ('ieee', 'bf16x3', 'bf16x6'). Got tf32x3 (triton CompilationError)",
+      "port_coverage": "The same Ward kernels run at precision='ieee' in this port; gates A/A2 verify exact partition/pairing equality against the torch oracle on this GPU."
+    },
+    "tests/unit/core/test_ward_kernel.py::test_tf32x3_merges_the_same_pools_almost_everywhere": {
+      "classification": "UNSUPPORTED_PRECISION",
+      "reason": "Explicitly compares ward_merge() at default tf32x3 against precision='ieee'; the tf32x3 invocation cannot compile on HIP.",
+      "evidence": "AssertionError: input_precision must be one of ('ieee', 'bf16x3', 'bf16x6'). Got tf32x3",
+      "port_coverage": "tf32x3 is a NVIDIA fast-path this port replaces with 'ieee' (PORT_NOTES: HIP dot precisions)."
+    },
+    "tests/unit/core/test_ward_kernel.py::test_every_block_ends_at_its_count_under_the_cap": {
+      "classification": "UNSUPPORTED_PRECISION",
+      "reason": "Calls ward_merge() without precision=, i.e. the tf32x3 default; compile rejection on HIP precedes any assertion about cap semantics.",
+      "evidence": "AssertionError: input_precision must be one of ('ieee', 'bf16x3', 'bf16x6'). Got tf32x3",
+      "port_coverage": "Cap semantics at ieee precision are covered exactly by tests/unit/core/test_ward_kernel.py::test_the_kernel_merges_as_the_torch_rounds_do (PASS) and this port's gates A/A2."
+    },
+    "tests/unit/core/test_ward_kernel.py::test_a_cap_that_leaves_no_pair_reports_the_block_short": {
+      "classification": "UNSUPPORTED_PRECISION",
+      "reason": "Same tf32x3-default ward_merge() invocation; compile rejection on HIP.",
+      "evidence": "AssertionError: input_precision must be one of ('ieee', 'bf16x3', 'bf16x6'). Got tf32x3",
+      "port_coverage": "The short-block case is exercised on ROCm through gate A's partition-equality path at ieee."
+    },
+    "tests/unit/core/test_shape_kernels.py::test_power_iteration_finds_the_leading_directions_of_a_spread_covariance": {
+      "classification": "NUMERIC_DIVERGENCE_UNUSED_PATH",
+      "reason": "Marginal RDNA numerics of the bf16 power-iteration kernel vs the fp64-ish torch eigh reference: one variance element misses the rtol 1e-3 tolerance by ~7x (measured rel 7.07e-3 at index (33,1)). Compiles and runs on gfx1151; only the NVIDIA-calibrated tolerance is exceeded. The shaped-bucket scoring path this tests is NOT used by this port (unshaped buckets).",
+      "evidence": "Mismatched elements: 2/128; greatest rel difference 0.007074519991874695 at (33,1) (up to 0.001 allowed)",
+      "port_coverage": "None needed: the port never builds shape tables. ROADMAP Track 2 item 6 tracks re-derived tolerances before enabling shaped scoring."
+    },
+    "tests/unit/core/test_shape_kernels.py::test_a_shaped_row_scores_the_references_estimated_best_key[2]": {
+      "classification": "NUMERIC_DIVERGENCE_UNUSED_PATH",
+      "reason": "rank-2 shaped-row scoring kernel vs the torch reference: a single element of 6400 exceeds atol 2e-3 by 1.4% (0.0020275 vs 0.002 allowed). Ranks 0 and 1 pass. Unused path for this port.",
+      "evidence": "Mismatched elements: 1/6400; greatest abs difference 0.002027541399002075 at (14,22) (up to 0.002 allowed)",
+      "port_coverage": "Not used by the port; see ROADMAP Track 2 item 6."
+    },
+    "tests/unit/core/test_shape_kernels.py::test_the_dense_spread_and_the_row_scoring_agree_on_the_spread_bit_for_bit": {
+      "classification": "NUMERIC_DIVERGENCE_UNUSED_PATH",
+      "reason": "Demands bit-for-bit torch.equal agreement between two different bf16 Triton kernels (dense add_planes_spread vs score_shaped_rows); on gfx1151 the two reduction orders differ in the last bf16 bit(s). An exactness expectation calibrated on NVIDIA hardware, not an algorithmic fault. Unused path for this port.",
+      "evidence": "torch.equal False on bf16 tensors that agree to display precision (last-bit differences)",
+      "port_coverage": "Not used by the port; see ROADMAP Track 2 item 6."
+    }
+  }
+}
