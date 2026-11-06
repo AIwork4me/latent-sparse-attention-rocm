@@ -36,6 +36,7 @@ from lsa.core.kernels.triton.ward import cluster_node_buckets as triton_ward_clu
 from lsa_rocm_lab.port import HIP_PRECISION, pipeline, triton_ward
 from lsa_rocm_lab.port.pipeline import PortConfig
 from lsa_rocm_lab.port.read_kernel import sparse_read
+from lsa_rocm_lab.port.read_kernel_tiled import sparse_read_auto
 
 TOLERANCES = {
     torch.float32: (1e-4, 1e-4),
@@ -282,7 +283,7 @@ def gate_d_sparse_read(q, k, v, config: PortConfig) -> dict:
     idx_q, idx_k = make_index_space(q, k)
     buckets = pipeline.build_buckets_gpu(idx_k, config)
     lists, lengths = pipeline.flat_select(idx_q, torch.arange(T, device=q.device), buckets, config)
-    port = sparse_read(q, k, v, lists.unsqueeze(0), lengths.unsqueeze(0), scale)
+    port = sparse_read_auto(q, k, v, lists.unsqueeze(0), lengths.unsqueeze(0), scale)
     oracle = topk_attention(q, k, v, _oracle_ids(lists, lengths).unsqueeze(0).int(), window=0, sink=0, scale=scale)
     atol, rtol = TOLERANCES[q.dtype]
     err = float((port.float() - oracle.float()).abs().max())
@@ -308,7 +309,7 @@ def gate_d2_full_select(q, k, v) -> dict:
     causal = row[None, :] <= row[:, None]  # key j visible to query t
     ids_kernel = torch.where(causal, row[None, :].expand(T, T), torch.tensor(-1, device=q.device, dtype=torch.int32))
     lengths = (row + 1).to(torch.int32)
-    port = sparse_read(q, k, v, ids_kernel.view(1, T, T).contiguous(), lengths.view(1, T), scale)
+    port = sparse_read_auto(q, k, v, ids_kernel.view(1, T, T).contiguous(), lengths.view(1, T), scale)
     dense = pipeline.dense_read(q, k, v, scale)
     oracle_ids = torch.where(causal, row[None, :].expand(T, T), row[:, None].expand(T, T))
     oracle = topk_attention(q, k, v, oracle_ids.contiguous().view(1, T, T), window=0, sink=0, scale=scale)
@@ -336,12 +337,12 @@ def gate_e_decode_step(q, k, v, config: PortConfig) -> dict:
     buckets = pipeline.build_buckets_gpu(idx_k, config)
     positions = torch.arange(T, device=q.device)
     whole_lists, whole_lengths = pipeline.flat_select(idx_q, positions, buckets, config)
-    whole = sparse_read(q, k, v, whole_lists.unsqueeze(0), whole_lengths.unsqueeze(0), scale)
+    whole = sparse_read_auto(q, k, v, whole_lists.unsqueeze(0), whole_lengths.unsqueeze(0), scale)
     last = T - 1
     step_lists, step_lengths = pipeline.flat_select(
         idx_q[last : last + 1], positions[last : last + 1], buckets, config
     )
-    step = sparse_read(q[:, last : last + 1], k, v, step_lists.unsqueeze(0), step_lengths.unsqueeze(0), scale)
+    step = sparse_read_auto(q[:, last : last + 1], k, v, step_lists.unsqueeze(0), step_lengths.unsqueeze(0), scale)
     selection_equal = bool(torch.equal(step_lists[0].cpu(), whole_lists[last].cpu()))
     err = float((step.float() - whole[:, last : last + 1].float()).abs().max())
     return {
@@ -390,6 +391,48 @@ def gate_g_dense_parity(q, k, v) -> dict:
     }
 
 
+def gate_h_tiled_read(q, k, v, config: PortConfig) -> dict:
+    """H (v0.3.0): the production tiled read equals v1's kernel; zero-length rows are zeros.
+
+    The production path (``sparse_read_auto``) may only differ from v1 by
+    dtype-rounding - the same tolerance the oracle gates allow - across fp32,
+    fp16 and bf16 on a real selection, with both dispatch regimes exercised
+    (a prefill-scale launch and a decode-scale launch). The zero-length leg
+    pins the contract v1 violated (0/0 NaN): no keys listed -> zero output,
+    finite, exactly.
+    """
+    T = q.shape[1]
+    scale = q.shape[-1] ** -0.5
+    idx_q, idx_k = make_index_space(q, k)
+    buckets = pipeline.build_buckets_gpu(idx_k, config)
+    positions = torch.arange(T, device=q.device)
+    lists, lengths = pipeline.flat_select(idx_q, positions, buckets, config)
+    lists, lengths = lists.unsqueeze(0), lengths.unsqueeze(0)
+    worst = 0.0
+    for dtype in (torch.float32, torch.float16, torch.bfloat16):
+        atol, rtol = TOLERANCES[dtype]
+        for launch in ("prefill", "decode"):
+            if launch == "prefill":
+                a, l, n = q.to(dtype), lists, lengths
+            else:  # the decode-scale dispatch (single row) must equal v1 too
+                a, l, n = q.to(dtype)[:, -1:], lists[:, -1:], lengths[:, -1:]
+            tiled = sparse_read_auto(a, k.to(dtype), v.to(dtype), l, n, scale)
+            ref = sparse_read(a, k.to(dtype), v.to(dtype), l, n, scale)
+            err = float((tiled.float() - ref.float()).abs().max())
+            worst = max(worst, err)
+            if not bool(torch.allclose(tiled.float(), ref.float(), atol=atol, rtol=rtol)):
+                return {"gate_id": "H", "gate": "H tiled read == v1 kernel (+ zero-length contract)",
+                        "status": "FAIL", "dtype": str(dtype), "launch": launch, "max_abs_error": err}
+    # zero-length contract: no listed keys -> zero output (v1 gives NaN here)
+    ids0 = torch.full((1, 8, 64), -1, device=q.device, dtype=torch.int32)
+    len0 = torch.zeros(1, 8, device=q.device, dtype=torch.int32)
+    zero_rows = sparse_read_auto(q[:, :8].bfloat16(), k.bfloat16(), v.bfloat16(), ids0, len0, scale)
+    finite_zero = bool(torch.isfinite(zero_rows).all() and zero_rows.float().abs().max() == 0.0)
+    return {"gate_id": "H", "gate": "H tiled read == v1 kernel (+ zero-length contract)",
+            "max_abs_error": worst, "zero_length_output_zero": finite_zero,
+            "status": "PASS" if finite_zero else "FAIL"}
+
+
 def run_all_gates(seed: int = 20261105) -> list[dict]:
     """Run the gate suite on one GPU; every gate's verdict is returned, none is swallowed."""
     device = "cuda"
@@ -422,6 +465,7 @@ def run_all_gates(seed: int = 20261105) -> list[dict]:
     results.append(gate_f_gqa(q8.bfloat16(), k.bfloat16(), v.bfloat16(), config))
     for dtype in (torch.float32, torch.float16, torch.bfloat16):
         results.append(gate_g_dense_parity(q.to(dtype), k.to(dtype), v.to(dtype)))
+    results.append(gate_h_tiled_read(q.float(), k.float(), v.float(), config))
     return results
 
 

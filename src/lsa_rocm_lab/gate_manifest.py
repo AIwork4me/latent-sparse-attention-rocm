@@ -24,6 +24,10 @@ REQUIRED_GATE_IDS = [
     "G:fp32",
     "G:fp16",
     "G:bf16",
+    # v0.3.0: the tiled production read is gated against v1 every receipt run.
+    # v0.2.1's 16-gate receipts remain valid evidence of their time but no
+    # longer validate against the current manifest (fail-closed by design).
+    "H",
 ]
 
 

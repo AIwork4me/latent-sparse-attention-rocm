@@ -24,7 +24,7 @@ from lsa_rocm_lab.port import (
     triton_top_k,
     triton_ward,
 )
-from lsa_rocm_lab.port.read_kernel import sparse_read
+from lsa_rocm_lab.port.read_kernel_tiled import sparse_read_auto as sparse_read
 from lsa.core.kernels.triton.keys import unpack_ids
 
 

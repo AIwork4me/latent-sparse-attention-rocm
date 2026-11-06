@@ -41,10 +41,10 @@ class TestVerdictOf:
 
     def test_renamed_or_extra_gate_is_not_ok(self):
         suite = _full_suite()
-        suite[-1]["gate_id"] = "G:fp8"
+        suite[-1]["gate_id"] = "H2:tiled"
         verdict = verdict_of(suite)
         assert verdict["ok"] is False
-        assert "G:bf16" in verdict["missing"] and "G:fp8" in verdict["unexpected"]
+        assert REQUIRED_GATE_IDS[-1] in verdict["missing"] and "H2:tiled" in verdict["unexpected"]
 
     def test_duplicate_gate_is_not_ok(self):
         suite = _full_suite()
@@ -127,7 +127,7 @@ class TestValidateReceipt:
     def test_short_suite_rejected(self, tmp_path):
         from lsa_rocm_lab.run import validate_receipt
 
-        with pytest.raises(ValueError, match="G:bf16"):
+        with pytest.raises(ValueError, match=REQUIRED_GATE_IDS[-1]):
             validate_receipt(_receipt(tmp_path, gates=_full_suite()[:-1]), "lsa_rocm_kernel", self.SHA)
 
     def test_failed_verdict_rejected(self, tmp_path):
