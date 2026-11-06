@@ -2,7 +2,7 @@
 # States: NOT_STARTED | IN_PROGRESS | BLOCKED | VERIFYING | REVIEW_READY | APPROVED | DONE
 
 schema_version: 1
-updated_utc: "2026-11-07T02:30:00Z"
+updated_utc: "2026-11-07T05:20:00Z"
 
 v0.2.1:
   status: REVIEW_READY
@@ -42,7 +42,8 @@ v0.3.0:
     - "PASS: matched-baseline speedups only, auditor-APPROVED receipts (72+162 recomputed)"
     - "PASS: 3+ seeds / 3+ process reps on strategic shapes (two studies)"
     - "PASS: OPTIMIZATION doc + draft PR 5 updated"
-    - "PASS: independent adversarial review GO-WITH-FINDINGS; F1-F7 closed at 1e73c3a; final 11-receipt audit APPROVED (docs/reviews/V0_3_INDEPENDENT_REVIEW.md)"
+    - "PASS: independent adversarial review GO-WITH-FINDINGS; F1-F7 closed at 1e73c3a (docs/reviews/V0_3_INDEPENDENT_REVIEW.md)"
+    - "PASS (v0.3.1 at 60c004b): topk select swap (decode select 1.24x, equivalence-pinned); 11/11 receipts re-issued at the new code head, 181 tests, 17/17 gates"
 
 v0.4.0: {status: NOT_STARTED, objective: "context scaling 64k-256k+, covering-array matrix, crossover curves, UMA/GTT honesty"}
 v0.5.0: {status: NOT_STARTED, objective: "real model 0.5B-3B + model-bound indexer + RULER/NIAH quality gates (pre-registered)"}
