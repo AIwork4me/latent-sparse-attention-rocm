@@ -6,7 +6,7 @@
   "last_verified": {
     "main_sha": "5f2918e3fd3441d81b07ed8e9b8c8c47ae5689cb",
     "pr1_head_sha": "79412f8a8b4fcb09f09f4a41b6eb07d075dbe3b1",
-    "pr5_head_sha": "pending-final-docs-commit",
+    "pr5_head_sha": "25c7bbc (docs-only; code head 1e73c3a)",
     "upstream_sha": "5ebea732d639576d2a7579b0de40e6252f9001f5",
     "upstream_equals_reviewed_pin": true,
     "gates": "17/17 PASS on gfx1151 at 1e73c3a (default AND LSA_TREE_IMPL=batched)",
