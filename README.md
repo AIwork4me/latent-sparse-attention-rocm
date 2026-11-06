@@ -17,15 +17,16 @@ correctness suite (manifest-enforced: a skipped or short suite can never validat
 a receipt). Benchmarks compare dense SDPA, a positional block-sparse arm,
 D-LSA Flat and D-LSA Tree on matched shapes with synchronized timings.
 
-**Headline (v0.3.0, final receipts at `1e73c3a` — tiled sparse read in
-production; 17/17 correctness gates; all receipts independently audited):**
-decode select+read at 32k ctx, bf16 — **block-sparse 4.20×** (cross-seed band
-4.02–4.21×, robust), **D-LSA Flat 1.98×** (band 1.76–2.01× — the v0.2.1 "2.1×"
-figure came from one favorable seed and does **not** generalize; see the
-multi-seed section of [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md)), D-LSA Tree
-**0.95× (not faster than dense)**; prefill **0.211× vs dense** (up from
-0.19×: the tiled read is 1.14–1.24× over v0.2.1's kernel on identical inputs,
-production config; attribution and the honest waterfall in
+**Headline (v0.3.x, final receipts at `60c004b` — tiled sparse read + topk
+select in production; 17/17 correctness gates; all receipts independently
+audited):** decode select+read at 32k ctx, bf16 — **block-sparse 4.29×**
+(cross-seed band 4.24–4.38×, robust), **D-LSA Flat 1.94×** (band 1.85–2.06× —
+the v0.2.1 "2.1×" figure came from one favorable seed and does **not**
+generalize; see the multi-seed section of
+[`docs/BENCHMARKS.md`](docs/BENCHMARKS.md)), D-LSA Tree **0.93× (not faster
+than dense)**; prefill **0.210× vs dense** (up from 0.19×: the tiled read is
+1.14–1.24× over v0.2.1's kernel on identical inputs, production config;
+attribution and the honest waterfall in
 [`docs/OPTIMIZATION_v0.3.md`](docs/OPTIMIZATION_v0.3.md)). Single-receipt runs
 can land below the band — cite the band, not one run.
 Full receipt-generated tables: [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md).

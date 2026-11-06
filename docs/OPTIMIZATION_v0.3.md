@@ -179,9 +179,14 @@ measurement as its justification.
 
 ## h. What a v0.3.1+ attacker does next, in measured order
 
-1. Prefill `flat_select`'s sort+copy chain (~48% of the 95 ms select) — int32
-   keys or a fused pack→sort→expand Triton pass.
+1. **Partially delivered (v0.3.1, `60c004b`)**: `best_first_keys` replaces the
+   select's full-width int64 sort + strided slice with `torch.topk` — provably
+   identical on upstream's unique packed keys (5 equivalence tests). Measured
+   in-process on identical 32k inputs: **decode select 0.266 → 0.214 ms
+   (1.24×)**, prefill neutral (0.99×) — the radix sort was already efficient at
+   [32768, 4096]; what remains of this lever is a fused pack→expand Triton pass
+   (the copies, not the ordering).
 2. The Triton beam port above.
-3. Decode select fusion (42 launches / ~139 µs GPU for 0.27 ms wall).
+3. Decode select fusion (42 launches / ~139 µs GPU for ~0.21 ms wall after 1).
 4. Sparse-read shared-block dedup across cluster rows (needs a grouping pass;
    the ~10× traffic cut case, research-grade).
