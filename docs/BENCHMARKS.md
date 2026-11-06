@@ -121,3 +121,23 @@
 
 Per-repetition receipts: `receipt-1.json`, `receipt-2.json`, `receipt-3.json`
 
+
+## Multi-seed variance bands (v0.3.0/T1) — 9 receipts
+
+- seeds: 424243, 777001, 20261105 · min seeds 3 · min runs/seed 3
+- runs: rep1-20261106T151843Z, rep2-20261106T151843Z, rep3-20261106T151843Z, rep4-20261106T151843Z, rep5-20261106T151843Z, rep6-20261106T151843Z, rep7-20261106T151843Z, rep8-20261106T151843Z, rep9-20261106T151843Z
+- coverage status: **OK**
+
+A single-seed speedup is NOT a headline claim: cite the cross-seed band (per-seed median speedups, min–max) plus the pooled median.
+
+| context/dtype/phase/method | per-seed medians | cross-seed band | pooled |
+|---|---|---|---|
+| 8192/bf16/decode/block_sparse | s424243=1.10, s777001=1.18, s20261105=1.00 | 1.00–1.18 (med 1.10) | 1.12 |
+| 8192/bf16/decode/lsa_flat | s424243=1.04, s777001=1.14, s20261105=0.96 | 0.96–1.14 (med 1.04) | 1.03 |
+| 8192/bf16/decode/lsa_tree | s424243=0.28, s777001=0.31, s20261105=0.30 | 0.28–0.31 (med 0.30) | 0.30 |
+| 16384/bf16/decode/block_sparse | s424243=1.94, s777001=2.05, s20261105=2.08 | 1.94–2.08 (med 2.05) | 2.04 |
+| 16384/bf16/decode/lsa_flat | s424243=1.08, s777001=1.27, s20261105=1.78 | 1.08–1.78 (med 1.27) | 1.27 |
+| 16384/bf16/decode/lsa_tree | s424243=0.46, s777001=0.48, s20261105=0.48 | 0.46–0.48 (med 0.48) | 0.48 |
+| 32768/bf16/decode/block_sparse | s424243=4.14, s777001=4.28, s20261105=4.38 | 4.14–4.38 (med 4.28) | 4.27 |
+| 32768/bf16/decode/lsa_flat | s424243=1.69, s777001=1.74, s20261105=2.79 | 1.69–2.79 (med 1.74) | 1.85 |
+| 32768/bf16/decode/lsa_tree | s424243=0.92, s777001=0.90, s20261105=0.80 | 0.80–0.92 (med 0.90) | 0.87 |

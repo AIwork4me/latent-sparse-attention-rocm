@@ -17,14 +17,17 @@ correctness suite (manifest-enforced: a skipped or short suite can never validat
 a receipt). Benchmarks compare dense SDPA, a positional block-sparse arm,
 D-LSA Flat and D-LSA Tree on matched shapes with synchronized timings.
 
-**Headline (v0.2.1, corrected decode baseline; median of 3 independent runs):**
-decode select+read at 32k ctx, bf16 — **block-sparse 3.9×**, **D-LSA Flat
-2.1×** (spread 1.5–2.4×), D-LSA Tree **0.9× (not faster than dense)**; prefill
-remains slower than dense at ≤32k (0.19×). Full receipt-generated tables:
-[`docs/BENCHMARKS.md`](docs/BENCHMARKS.md). **All v0.2.0 decode speedups are
-superseded** — the v0.2.0 dense-decode baseline masked a single-token query to
-key 0 and was ~2.8× slower than the correct dispatch, inflating every old
-speedup ([`docs/RESULTS_v0.2.0.md`](docs/RESULTS_v0.2.0.md),
+**Headline (v0.3.0/T1 multi-seed study — 3 seeds × 3 fresh processes, all
+receipts independently audited):** decode select+read at 32k ctx, bf16 —
+**block-sparse 4.28×** (cross-seed band 4.14–4.38×, robust), **D-LSA Flat
+1.74×** (band 1.69–2.79× — the v0.2.1 "2.1×" figure came from one favorable
+seed and does **not** generalize; see the multi-seed section of
+[`docs/BENCHMARKS.md`](docs/BENCHMARKS.md)), D-LSA Tree **0.90× (not faster
+than dense)**; prefill remains slower than dense at ≤32k (0.19×). Full
+receipt-generated tables: [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md). **All
+v0.2.0 decode speedups are superseded** — the v0.2.0 dense-decode baseline
+masked a single-token query to key 0 and was ~2.8× slower than the correct
+dispatch, inflating every old speedup ([`docs/RESULTS_v0.2.0.md`](docs/RESULTS_v0.2.0.md),
 [`docs/REVIEW_v0.2.1.md`](docs/REVIEW_v0.2.1.md)).
 
 **What is explicitly not claimed:** end-to-end SGLang serving on gfx1151 (BLOCKED,
