@@ -1,0 +1,43 @@
+# Milestone ledger - status must be evidence-backed; never invent DONE.
+# States: NOT_STARTED | IN_PROGRESS | BLOCKED | VERIFYING | REVIEW_READY | APPROVED | DONE
+
+schema_version: 1
+updated_utc: "2026-11-06T01:05:00Z"
+
+v0.2.1:
+  status: REVIEW_READY
+  pr: 1
+  branch: v0.2.1-scientific-validity
+  acceptance_gates:
+    - "16/16 correctness gates PASS on gfx1151"
+    - "upstream tests: no unclassified failures"
+    - "all claims from auditor-APPROVED receipts only"
+    - "campaign fail-closed (F11) with negative tests"
+    - "no untrusted public-PR route to the persistent runner (F10), validated live"
+    - "independent final review GO"
+  evidence: [evidence/audit-v0.2.1.json, evidence/receipt-2139758-postfix-verification.json,
+             docs/reviews/PR1_FINAL_INDEPENDENT_REVIEW.md]
+  remaining: ["owner merge decision", "post-merge trusted GPU run on main SHA before tagging"]
+
+v0.3.0:
+  status: NOT_STARTED
+  objective: genuine ROCm kernel optimization (tile the sparse read; kernelize tree beam; close nothing on correctness)
+  tasks:
+    - id: seed-study
+      summary: ">=3 seeds at strategic decode shapes (32k bf16): quantify seed sensitivity of the 2.1x flat / 3.9x block-sparse medians (L3 limitation)"
+    - id: profile
+      summary: "profile Ward build / top-k / expansion / sparse read / tree beam; clocks + kernel IDs; separate compile from warm dispatch"
+    - id: tiled-read
+      summary: "tiled multi-query sparse read (tl.dot), coalesced gathers; vs v0.2.1 kernel, no correctness regression"
+    - id: kernelized-tree
+      summary: "replace python-composed tree beam with GPU kernels where feasible; batched decode B={1,2,4,8}"
+  acceptance_gates: ["no correctness regression", "matched-baseline speedups only", "3+ seeds / 3+ process reps on strategic shapes", "OPTIMIZATION doc + draft PR"]
+
+v0.4.0: {status: NOT_STARTED, objective: "context scaling 64k-256k+, covering-array matrix, crossover curves, UMA/GTT honesty"}
+v0.5.0: {status: NOT_STARTED, objective: "real model 0.5B-3B + model-bound indexer + RULER/NIAH quality gates (pre-registered)"}
+v0.6.0: {status: BLOCKED_ON_REASSESS, objective: "SGLang gfx1151 serving lane (ROCm 7.2.4 image is separate; primary stays 10.1)",
+         note: "reassess official gfx1151 docs before declaring blocked"}
+v0.7.0: {status: NOT_STARTED, objective: "true E2E TTFT/TPOT/throughput + model accuracy per config"}
+v0.8.0: {status: NOT_STARTED, objective: "reliability, failure modes, recovery, SBOM"}
+v0.9.0: {status: NOT_STARTED, objective: "cross-Radeon (only if hardware accessible), upstream contributions after approval, DX"}
+v1.0.0: {status: NOT_STARTED, objective: "release qualification hard gates - NO-GO unless every mandatory claim is real"}
