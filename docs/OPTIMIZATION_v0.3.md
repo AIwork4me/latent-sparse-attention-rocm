@@ -150,25 +150,32 @@ seed-sensitive; block-sparse is robust.
 Hypothesis from T2: 19,940 launches/iter made the python page loop the cost.
 Experiment: page-batched walk (`_tree_select_pages` — one batched op set per
 level, chunked to bound the gathered-centroid einsum; growth tables replayed
-on CPU; set-equal to the reference walk, gate C PASS, and to the per-page walk
-by test). Result at identical inputs:
+on CPU; set-equal to the per-page walk on every seed tested — enforced inside
+the A/B before timing counts — and gate C PASS with `LSA_TREE_IMPL=batched`).
+Measured by `scripts/ab_tree_select.py` (receipt methodology: warmup 5, reps
+20, synchronized; artifact `evidence/receipts-v0.3.0/ab-tree-select.json`):
 
-| context | phase | per-page | page-batched | ratio |
+| context | phase | per-page p50 | page-batched p50 | batched/per-page |
 |---:|---|---:|---:|---:|
-| 8192 | prefill select | 48.9 ms | 55.9 ms | 0.87× |
-| 32768 | prefill select | 294.6 ms | 363.2 ms | 0.81× |
-| 8192 | decode select | 2.15 ms | 2.31 ms | 0.93× |
-| 32768 | decode select | 3.28 ms | 2.88 ms | 1.14× |
+| 8192 | prefill select | 48.06 ms | 55.98 ms | 1.16× slower |
+| 32768 | prefill select | 288.70 ms | 373.28 ms | 1.29× slower |
+| 8192 | decode select | 1.07 ms | 1.91 ms | 1.78× slower |
+| 32768 | decode select | 1.14 ms | 2.12 ms | 1.86× slower |
+
+(An earlier ad-hoc measurement of the same comparison quoted 0.81–0.87× with
+under-warmed baselines and was replaced by this committed, set-equality-gated
+artifact — the review pass caught it.)
 
 **The launch tax is not the dominant cost** — each launch is tiny; the beam's
 GPU work (gathered-centroid scores, per-row sorts, dedup) is. Torch-level
 batching forces batch-max candidate widths and extra copies that cost more
-than the loop saves. Production keeps the per-page walk (default;
-`LSA_TREE_IMPL=batched` selects the experimental path, held set-equal by
-test). The remaining lever is a true per-level Triton beam (upstream's
-`beam.py` layout: fp8 node centroids, packed keys, children tables) — a
-layout-adapting port, estimated multi-day, deferred with this measurement as
-its justification.
+than the loop saves (and single-row decode loses the per-page walk's short
+`torch.unique` path). Production keeps the per-page walk (default;
+`LSA_TREE_IMPL=batched` selects the experimental path, held set-equal by test
+and by the A/B's own gate). The remaining lever is a true per-level Triton
+beam (upstream's `beam.py` layout: fp8 node centroids, packed keys, children
+tables) — a layout-adapting port, estimated multi-day, deferred with this
+measurement as its justification.
 
 ## h. What a v0.3.1+ attacker does next, in measured order
 

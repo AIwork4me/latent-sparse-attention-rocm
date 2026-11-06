@@ -423,11 +423,17 @@ def gate_h_tiled_read(q, k, v, config: PortConfig) -> dict:
             if not bool(torch.allclose(tiled.float(), ref.float(), atol=atol, rtol=rtol)):
                 return {"gate_id": "H", "gate": "H tiled read == v1 kernel (+ zero-length contract)",
                         "status": "FAIL", "dtype": str(dtype), "launch": launch, "max_abs_error": err}
-    # zero-length contract: no listed keys -> zero output (v1 gives NaN here)
-    ids0 = torch.full((1, 8, 64), -1, device=q.device, dtype=torch.int32)
-    len0 = torch.zeros(1, 8, device=q.device, dtype=torch.int32)
-    zero_rows = sparse_read_auto(q[:, :8].bfloat16(), k.bfloat16(), v.bfloat16(), ids0, len0, scale)
-    finite_zero = bool(torch.isfinite(zero_rows).all() and zero_rows.float().abs().max() == 0.0)
+    # zero-length contract: no listed keys -> zero output (v1 gives NaN here).
+    # Both dispatch regimes (review F4): 8 rows take the decode config, 64 rows
+    # the prefill tile config, so a zero-length regression cannot hide in TM4.
+    ids8 = torch.full((1, 8, 64), -1, device=q.device, dtype=torch.int32)
+    len8 = torch.zeros(1, 8, device=q.device, dtype=torch.int32)
+    zero8 = sparse_read_auto(q[:, :8].bfloat16(), k.bfloat16(), v.bfloat16(), ids8, len8, scale)
+    ids64 = torch.full((1, 64, 64), -1, device=q.device, dtype=torch.int32)
+    len64 = torch.zeros(1, 64, device=q.device, dtype=torch.int32)
+    zero64 = sparse_read_auto(q[:, :64].bfloat16(), k.bfloat16(), v.bfloat16(), ids64, len64, scale)
+    finite_zero = bool(torch.isfinite(zero8).all() and zero8.float().abs().max() == 0.0
+                       and torch.isfinite(zero64).all() and zero64.float().abs().max() == 0.0)
     return {"gate_id": "H", "gate": "H tiled read == v1 kernel (+ zero-length contract)",
             "max_abs_error": worst, "zero_length_output_zero": finite_zero,
             "status": "PASS" if finite_zero else "FAIL"}

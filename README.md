@@ -12,7 +12,7 @@ runtime from AMD's pip wheels, PyTorch `2.14.0+rocm10.1.0`, Triton
 hierarchy pairing), the top-k listing and rank-order expansion run **upstream's own
 Triton kernels** on the Radeon GPU; the sparse read — which upstream delegates to
 NVIDIA-only attention backends — is a **Triton gather-attention kernel written for
-this port**; every path is held to upstream's pure-PyTorch oracle by a 16-gate
+this port**; every path is held to upstream's pure-PyTorch oracle by a 17-gate
 correctness suite (manifest-enforced: a skipped or short suite can never validate
 a receipt). Benchmarks compare dense SDPA, a positional block-sparse arm,
 D-LSA Flat and D-LSA Tree on matched shapes with synchronized timings.
@@ -24,7 +24,7 @@ all receipts independently audited):** decode select+read at 32k ctx, bf16 —
 seed and does **not** generalize; see the multi-seed section of
 [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md)), D-LSA Tree **0.88× (not faster
 than dense)**; prefill **0.207× vs dense** (up from 0.19×: the tiled read is
-1.15–1.24× over v0.2.1's kernel on identical inputs; attribution and the
+1.14–1.24× over v0.2.1's kernel on identical inputs, production config; attribution and the
 honest waterfall in [`docs/OPTIMIZATION_v0.3.md`](docs/OPTIMIZATION_v0.3.md)).
 Full receipt-generated tables: [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md).
 **All v0.2.0 decode speedups are superseded** — the v0.2.0 dense-decode baseline
@@ -59,7 +59,7 @@ python -m lsa_rocm_lab.preflight              # hardware/toolchain manifest (har
 python -m lsa_rocm_lab.correctness            # upstream reference == dense SDPA on GPU
 python -m lsa_rocm_lab.triton_probe           # Triton HIP JIT smoke (not LSA)
 bash scripts/run_upstream_kernel_tests.sh     # upstream's Triton kernel tests, triaged on ROCm
-python -m lsa_rocm_lab.port.gates             # the port's 16-gate oracle parity suite
+python -m lsa_rocm_lab.port.gates             # the port's 17-gate oracle parity suite
 python -m lsa_rocm_lab.kernel_adapter         # matched benchmarks + validated receipt
 python -m lsa_rocm_lab.run --quick            # starter stage chain (BLOCKED-safe)
 bash scripts/campaign.sh                      # bounded campaign: pilot + overnight profile

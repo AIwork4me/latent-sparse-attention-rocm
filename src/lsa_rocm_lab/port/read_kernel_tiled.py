@@ -114,6 +114,11 @@ def sparse_read_tiled(
     width = read_ids.shape[-1]
     flat_ids = read_ids.reshape(-1, width).contiguous()
     flat_lengths = lengths.reshape(-1).contiguous()
+    # Defense in depth (review F3): a caller claiming more keys than the row
+    # holds would walk past the ids into unrelated memory in BOTH kernels; the
+    # expansion contract keeps length <= width, but the wrapper clamps anyway
+    # rather than trusting it. No-op for every production input.
+    flat_lengths = flat_lengths.clamp_max(width)
     out = torch.empty_like(q)
     rows_total = B * Tq
     nq = triton.cdiv(width, chunk) * chunk

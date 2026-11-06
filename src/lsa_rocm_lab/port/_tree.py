@@ -215,17 +215,21 @@ def _tree_select_pages(
                 valid = carried_valid[c0:c1].clone()
             cand, perm = torch.sort(cand, dim=2)
             valid = torch.gather(valid, 2, perm)
+            safe_cand = cand.clamp_max(hierarchy.levels[level - 1].centroids.shape[0] - 1)
             scores = torch.einsum("prd,prnd->prn", q[c0:c1],
-                                  hierarchy.levels[level - 1].centroids[cand])
+                                  hierarchy.levels[level - 1].centroids[safe_cand])
             scores = _dedup_scores(cand.reshape(-1, cand.shape[2]),
                                    scores.reshape(-1, cand.shape[2]),
                                    valid.reshape(-1, cand.shape[2])).reshape(c1 - c0, R, -1)
             top_idx = scores.reshape(-1, scores.shape[2]).argsort(
                 dim=1, descending=True, stable=True)[:, :keep_cols]
             picked = cand.reshape(-1, cand.shape[2]).gather(1, top_idx).reshape(c1 - c0, R, -1)
-            new_carried[c0:c1] = children[picked.reshape(-1)].reshape(c1 - c0, R, -1)
-            kept_ok = (picked >= 0).reshape(c1 - c0, R, keep_cols) \
-                & active[c0:c1, None, None] & row_valid[c0:c1, :, None]
+            new_carried[c0:c1] = children[picked.reshape(-1).clamp_max(children.shape[0] - 1)].reshape(c1 - c0, R, -1)
+            # a kept column is valid iff the CANDIDATE column it came from was:
+            # sentinel picks (>= 0!) must not flow into the next level as real ids
+            picked_ok = valid.reshape(-1, valid.shape[2]).gather(
+                1, top_idx).reshape(c1 - c0, R, keep_cols)
+            kept_ok = picked_ok & active[c0:c1, None, None] & row_valid[c0:c1, :, None]
             # each kept node contributes node_bucket_size children columns
             new_valid[c0:c1] = kept_ok.repeat_interleave(config.node_bucket_size, dim=2)
         # pages not walking this level keep their carried (they enter at a lower
@@ -236,6 +240,9 @@ def _tree_select_pages(
             carried_valid = torch.where(active[:, None, None], new_valid, carried_valid)
         else:
             carried, carried_valid = new_carried, new_valid
+        # invalid slots hold a never-colliding sentinel (id 0 is a REAL bucket):
+        # dedup keeps first occurrences, and a 0-pad could shadow the true bucket 0
+        carried = torch.where(carried_valid, carried, _PAD_SENTINEL_TENSOR(carried))
 
     for level in range(n_levels, 0, -1):
         active = levels_count >= level
@@ -260,7 +267,8 @@ def _tree_select_pages(
     for c0 in range(0, P, PAGE_CHUNK):
         c1 = min(c0 + PAGE_CHUNK, P)
         chunk_cand, chunk_valid = cand[c0:c1], valid[c0:c1]
-        scores = torch.einsum("prd,prnd->prn", q[c0:c1], centroids[chunk_cand])
+        scores = torch.einsum("prd,prnd->prn", q[c0:c1],
+                              centroids[chunk_cand.clamp_max(centroids.shape[0] - 1)])
         scores = _dedup_scores(chunk_cand.reshape(-1, chunk_cand.shape[2]),
                                scores.reshape(-1, scores.shape[2]),
                                chunk_valid.reshape(-1, chunk_valid.shape[2])).reshape(c1 - c0, R, -1)
@@ -281,13 +289,17 @@ def _tree_select_pages(
 PAGE_CHUNK = 4
 
 
+def _PAD_SENTINEL_TENSOR(like: torch.Tensor) -> torch.Tensor:
+    return torch.full_like(like, torch.iinfo(torch.int64).max - 1)
+
+
 def _row_ranges_batched(starts: torch.Tensor, stops: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     """[P, R] per-row ranges [start_p, stop_pr) padded to the widest - ``_row_ranges`` batched."""
     most = max(int((stops - starts[:, None]).max()), 0)
     span = torch.arange(most, device=starts.device)
     values = (starts[:, None, None] + span[None, None, :]).expand(stops.shape[0], stops.shape[1], most)
     valid = span[None, None, :] < (stops[:, :, None] - starts[:, None, None])
-    return values.masked_fill(~valid, 0), valid
+    return values.masked_fill(~valid, torch.iinfo(torch.int64).max - 1), valid
 
 
 def _dedup_scores(cand: torch.Tensor, scores: torch.Tensor, valid: torch.Tensor) -> torch.Tensor:
