@@ -1,18 +1,18 @@
 {
   "schema_version": 1,
-  "updated_utc": "2026-11-07T02:35:00Z",
+  "updated_utc": "2026-11-07T04:05:00Z",
   "current_milestone": "v0.3.0",
-  "milestone_status": "REVIEW_READY (implementation complete: T1 PASS, T2 PASS, T3 PASS, T4 negative-result documented; campaign-end independent review pending)",
+  "milestone_status": "REVIEW_READY (T1 PASS, T2 PASS, T3 PASS, T4 negative-result; independent adversarial review GO-WITH-FINDINGS -> all findings closed at 1e73c3a + final receipts; owner review pending)",
   "last_verified": {
     "main_sha": "5f2918e3fd3441d81b07ed8e9b8c8c47ae5689cb",
     "pr1_head_sha": "79412f8a8b4fcb09f09f4a41b6eb07d075dbe3b1",
-    "pr5_head_sha": "49886723fb5b9c0b15d9560aadbf67062559c681",
+    "pr5_head_sha": "pending-final-docs-commit",
     "upstream_sha": "5ebea732d639576d2a7579b0de40e6252f9001f5",
     "upstream_equals_reviewed_pin": true,
-    "gates": "17/17 PASS on gfx1151 (gate H added: tiled read == v1 + zero-length contract)",
-    "unit_tests": "176 passed (was 133; +43 incl. tiled-read edge matrix, seed-study tooling, batched-tree set-equality)",
-    "receipt_audit": "v0.3.0 matrix 2/2 APPROVED (72 recomputed); seed studies 2x9/9 APPROVED (162 recomputed)",
-    "headline": "32k bf16: prefill flat 0.207x (was 0.19x); decode flat 1.89x med (1.67-2.00 band); block-sparse 3.99x (3.93-4.19); tree 0.88x"
+    "gates": "17/17 PASS on gfx1151 at 1e73c3a (default AND LSA_TREE_IMPL=batched)",
+    "unit_tests": "176 passed at 1e73c3a",
+    "receipt_audit": "11/11 APPROVED at 1e73c3a (2 matrix + 9 seed study, 153 recomputed); earlier v0.3.0 audits at 4988672 remain as intermediate evidence",
+    "headline": "32k bf16 final: prefill flat 0.211x; decode flat 1.98x med (1.76-2.01 band), block-sparse 4.20x (4.02-4.21), tree 0.95x (0.94-1.01)"
   },
   "blockers": [
     {
@@ -47,5 +47,5 @@
     "Tag v0.2.1",
     "Any external upstream PR or paid cloud spend"
   ],
-  "next_action": "Campaign-end independent review of PR #5 head, then owner review. v0.3.1+ attack order measured: select sort chain (48% of 95ms), Triton beam port, decode select fusion."
+  "next_action": "Owner: review PR #1 (unchanged) and PR #5; fresh receipt at the eventual merge SHA is a merge condition. v0.3.1+ attack order measured: select sort chain, Triton beam port, decode select fusion (docs/OPTIMIZATION_v0.3.md h)."
 }
