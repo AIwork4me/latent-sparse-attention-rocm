@@ -1,0 +1,90 @@
+{
+  "mode": "cold",
+  "context": 32768,
+  "dtype": "bf16",
+  "seed": 20261105,
+  "gpu_arch": "gfx1151",
+  "stages": [
+    {
+      "stage": "index_regroup",
+      "first_call_ms": 47.71680594421923
+    },
+    {
+      "stage": "ward_cluster",
+      "first_call_ms": 9701.80589298252
+    },
+    {
+      "stage": "hierarchy_build",
+      "first_call_ms": 2031.9737209938467
+    },
+    {
+      "stage": "flat_select_prefill",
+      "first_call_ms": 552.4021950550377
+    },
+    {
+      "stage": "flat_select_decode",
+      "first_call_ms": 132.41999899037182
+    },
+    {
+      "stage": "tree_select_prefill",
+      "first_call_ms": 549.8187550110742
+    },
+    {
+      "stage": "tree_select_decode",
+      "first_call_ms": 5.015000002458692
+    },
+    {
+      "stage": "dense_prefill",
+      "first_call_ms": 94.65515008196235
+    },
+    {
+      "stage": "dense_decode",
+      "first_call_ms": 16.29064092412591
+    },
+    {
+      "stage": "index_regroup",
+      "second_call_ms": 2.0526100415736437
+    },
+    {
+      "stage": "ward_cluster",
+      "second_call_ms": 7.695419015362859
+    },
+    {
+      "stage": "hierarchy_build",
+      "second_call_ms": 16.828372958116233
+    },
+    {
+      "stage": "flat_select_prefill",
+      "second_call_ms": 171.8595870770514
+    },
+    {
+      "stage": "flat_select_decode",
+      "second_call_ms": 0.9043810423463583
+    },
+    {
+      "stage": "tree_select_prefill",
+      "second_call_ms": 298.15892700571567
+    },
+    {
+      "stage": "tree_select_decode",
+      "second_call_ms": 3.908449085429311
+    },
+    {
+      "stage": "sparse_read_prefill_flat",
+      "first_call_ms": 486.6014450090006
+    },
+    {
+      "stage": "sparse_read_decode_flat",
+      "first_call_ms": 126.59240094944835
+    },
+    {
+      "stage": "sparse_read_prefill_tree",
+      "first_call_ms": 254.41544502973557
+    },
+    {
+      "stage": "sparse_read_decode_tree",
+      "first_call_ms": 0.38074597250670195
+    }
+  ],
+  "triton_cache_dir": "/tmp/triton-cold.Z6zd"
+}

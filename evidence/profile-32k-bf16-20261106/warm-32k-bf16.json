@@ -1,0 +1,884 @@
+{
+  "mode": "warm",
+  "context": 32768,
+  "dtype": "bf16",
+  "seed": 20261105,
+  "gpu_arch": "gfx1151",
+  "profile_iters": 8,
+  "stages": [
+    {
+      "stage": "dense_prefill",
+      "p50_ms": 74.78483993327245,
+      "p95_ms": 79.32737108785659,
+      "gpu_time_us_per_iter": 152787.84775,
+      "launches_per_iter": 4.0,
+      "kernels": [
+        {
+          "name": "aten::_flash_attention_forward",
+          "count": 8,
+          "total_us": 611119.538,
+          "cpu_us": 117.90100000000126,
+          "share": 0.499973940172215,
+          "cumulative": 0.499973940172215
+        },
+        {
+          "name": "attn_fwd.kd",
+          "count": 8,
+          "total_us": 611119.538,
+          "cpu_us": 0,
+          "share": 0.499973940172215,
+          "cumulative": 0.99994788034443
+        },
+        {
+          "name": "aten::fill_",
+          "count": 8,
+          "total_us": 31.85300000005907,
+          "cpu_us": 84.27799999999968,
+          "share": 2.605982778501037e-05,
+          "cumulative": 0.9999739401722151
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<int>, std::array<char*, 1ul> >(int, at::native::FillFunctor<int>, std::array<char*, 1ul>) [clone .kd]",
+          "count": 8,
+          "total_us": 31.85300000005907,
+          "cpu_us": 0,
+          "share": 2.605982778501037e-05,
+          "cumulative": 1.0
+        }
+      ],
+      "kernel_table": "| kernel | count | total us | share |\n|---|---:|---:|---:|\n| aten::_flash_attention_forward | 8 | 611120 | 50.0% |\n| attn_fwd.kd | 8 | 611120 | 50.0% |\n| aten::fill_ | 8 | 32 | 0.0% |\n| void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<int>, std::array<char*, 1ul> >(int, at::native::FillFunctor<int>, std::array<char*, 1ul>) [clone .kd] | 8 | 32 | 0.0% |"
+    },
+    {
+      "stage": "dense_decode",
+      "p50_ms": 1.411794510204345,
+      "p95_ms": 3.302019089460373,
+      "gpu_time_us_per_iter": 3976.3132499999997,
+      "launches_per_iter": 2.0,
+      "kernels": [
+        {
+          "name": "aten::_flash_attention_forward",
+          "count": 8,
+          "total_us": 15905.252999999999,
+          "cpu_us": 81.34400000000048,
+          "share": 0.5,
+          "cumulative": 0.5
+        },
+        {
+          "name": "attn_fwd.kd",
+          "count": 8,
+          "total_us": 15905.252999999999,
+          "cpu_us": 0,
+          "share": 0.5,
+          "cumulative": 1.0
+        }
+      ],
+      "kernel_table": "| kernel | count | total us | share |\n|---|---:|---:|---:|\n| aten::_flash_attention_forward | 8 | 15905 | 50.0% |\n| attn_fwd.kd | 8 | 15905 | 50.0% |"
+    },
+    {
+      "stage": "index_regroup",
+      "p50_ms": 2.0024150144308805,
+      "p95_ms": 2.4593339767307043,
+      "gpu_time_us_per_iter": 4053.1299999999987,
+      "launches_per_iter": 20.0,
+      "kernels": [
+        {
+          "name": "aten::sum",
+          "count": 8,
+          "total_us": 7368.362999999999,
+          "cpu_us": 92.10200000000009,
+          "share": 0.2272429887519029,
+          "cumulative": 0.2272429887519029
+        },
+        {
+          "name": "void at::native::reduce_kernel<128, 4, at::native::ReduceOp<float, at::native::func_wrapper_t<float, at::native::sum_functor<float, float, float>::operator()(at::TensorIterator&)::{lambda(float, float)#1}>, unsigned int, float, 4, 4> >(at::native::ReduceOp<float, at::native::func_wrapper_t<float, at::native::sum_functor<float, float, float>::operator()(at::TensorIterator&)::{lambda(float, float)#1}>, unsigned int, float, 4, 4>) [clone .kd]",
+          "count": 8,
+          "total_us": 7368.362999999999,
+          "cpu_us": 0,
+          "share": 0.2272429887519029,
+          "cumulative": 0.4544859775038058
+        },
+        {
+          "name": "aten::copy_",
+          "count": 24,
+          "total_us": 5515.146000000004,
+          "cpu_us": 87.98400000000026,
+          "share": 0.1700891039764332,
+          "cumulative": 0.624575081480239
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::bfloat16tofloat32_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul> >(int, at::native::bfloat16tofloat32_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul>) [clone .kd]",
+          "count": 16,
+          "total_us": 4392.442000000001,
+          "cpu_us": 0,
+          "share": 0.13546450520955416,
+          "cumulative": 0.7600395866897931
+        },
+        {
+          "name": "aten::linalg_vector_norm",
+          "count": 16,
+          "total_us": 2277.4639999999927,
+          "cpu_us": 68.87200000000064,
+          "share": 0.07023781620624041,
+          "cumulative": 0.8302774028960335
+        },
+        {
+          "name": "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<float, at::native::NormTwoOps<float, float, float, true>, unsigned int, float, 4, 4> >(at::native::ReduceOp<float, at::native::NormTwoOps<float, float, float, true>, unsigned int, float, 4, 4>) [clone .kd]",
+          "count": 16,
+          "total_us": 2277.4639999999927,
+          "cpu_us": 0,
+          "share": 0.07023781620624041,
+          "cumulative": 0.9005152191022738
+        },
+        {
+          "name": "void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1} const&)::{lambda(int, bool)#1}) [clone .kd]",
+          "count": 8,
+          "total_us": 1122.7040000000025,
+          "cpu_us": 0,
+          "share": 0.03462459876687902,
+          "cumulative": 0.9351398178691529
+        },
+        {
+          "name": "aten::div",
+          "count": 16,
+          "total_us": 1011.6070000000022,
+          "cpu_us": 60.55699999999945,
+          "share": 0.031198326971994563,
+          "cumulative": 0.9663381448411474
+        },
+        {
+          "name": "void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl_nocast<at::native::BinaryFunctor<float, float, float, at::native::binary_internal::DivFunctor<float> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<float, float, float, at::native::binary_internal::DivFunctor<float> > const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::BinaryFunctor<float, float, float, at::native::binary_internal::DivFunctor<float> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<float, float, float, at::native::binary_internal::DivFunctor<float> > const&)::{lambda(int, bool)#1}) [clone .kd]",
+          "count": 16,
+          "total_us": 1011.6070000000022,
+          "cpu_us": 0,
+          "share": 0.031198326971994563,
+          "cumulative": 0.997536471813142
+        },
+        {
+          "name": "aten::clamp_min",
+          "count": 16,
+          "total_us": 39.939999999997326,
+          "cpu_us": 55.549999999999955,
+          "share": 0.0012317640934289469,
+          "cumulative": 0.9987682359065709
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::(anonymous namespace)::launch_clamp_scalar(at::TensorIteratorBase&, c10::Scalar, c10::Scalar, at::native::detail::ClampLimits)::{lambda()#1}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul> >(int, at::native::(anonymous namespace)::launch_clamp_scalar(at::TensorIteratorBase&, c10::Scalar, c10::Scalar, at::native::detail::ClampLimits)::{lambda()#1}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul>) [clone .kd]",
+          "count": 16,
+          "total_us": 39.939999999997326,
+          "cpu_us": 0,
+          "share": 0.0012317640934289469,
+          "cumulative": 0.9999999999999999
+        }
+      ],
+      "kernel_table": "| kernel | count | total us | share |\n|---|---:|---:|---:|\n| aten::sum | 8 | 7368 | 22.7% |\n| void at::native::reduce_kernel<128, 4, at::native::ReduceOp<float, at::native::func_wrapper_t<float, at::native::sum_functor<float, float, float>::operator()(at::TensorIterator&)::{lambda(float, float)#1}>, unsigned int, float, 4, 4> >(at::native::ReduceOp<float, at::native::func_wrapper_t<float, at::native::sum_functor<float, float, float>::operator()(at::TensorIterator&)::{lambda(float, float)#1}>, unsigned int, float, 4, 4>) [clone .kd] | 8 | 7368 | 22.7% |\n| aten::copy_ | 24 | 5515 | 17.0% |\n| void at::native::vectorized_elementwise_kernel<4, at::native::bfloat16tofloat32_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul> >(int, at::native::bfloat16tofloat32_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul>) [clone .kd] | 16 | 4392 | 13.5% |\n| aten::linalg_vector_norm | 16 | 2277 | 7.0% |\n| void at::native::reduce_kernel<512, 1, at::native::ReduceOp<float, at::native::NormTwoOps<float, float, float, true>, unsigned int, float, 4, 4> >(at::native::ReduceOp<float, at::native::NormTwoOps<float, float, float, true>, unsigned int, float, 4, 4>) [clone .kd] | 16 | 2277 | 7.0% |\n| void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1} const&)::{lambda(int, bool)#1}) [clone .kd] | 8 | 1123 | 3.5% |\n| aten::div | 16 | 1012 | 3.1% |\n| void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl_nocast<at::native::BinaryFunctor<float, float, float, at::native::binary_internal::DivFunctor<float> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<float, float, float, at::native::binary_internal::DivFunctor<float> > const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::BinaryFunctor<float, float, float, at::native::binary_internal::DivFunctor<float> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<float, float, float, at::native::binary_internal::DivFunctor<float> > const&)::{lambda(int, bool)#1}) [clone .kd] | 16 | 1012 | 3.1% |\n| aten::clamp_min | 16 | 40 | 0.1% |"
+    },
+    {
+      "stage": "ward_cluster",
+      "p50_ms": 6.796663510613143,
+      "p95_ms": 7.479783031158149,
+      "gpu_time_us_per_iter": 6719.192999999995,
+      "launches_per_iter": 86.0,
+      "kernels": [
+        {
+          "name": "_ward_merge_kernel.kd",
+          "count": 8,
+          "total_us": 47325.21200000001,
+          "cpu_us": 0,
+          "share": 0.8804110106675022,
+          "cumulative": 0.8804110106675022
+        },
+        {
+          "name": "aten::index_add_",
+          "count": 8,
+          "total_us": 1730.245,
+          "cpu_us": 104.88700000000131,
+          "share": 0.032188482307324726,
+          "cumulative": 0.9125994929748269
+        },
+        {
+          "name": "void at::native::indexFuncLargeIndex<float, long, unsigned int, 2, 2, -2, true, at::native::(anonymous namespace)::ReduceAdd>(at::cuda::detail::TensorInfo<float, unsigned int>, at::cuda::detail::TensorInfo<float const, unsigned int>, at::cuda::detail::TensorInfo<long const, unsigned int>, int, int, unsigned int, unsigned int, long, long, at::native::(anonymous namespace)::ReduceAdd const&, float) [clone .kd]",
+          "count": 8,
+          "total_us": 1730.245,
+          "cpu_us": 0,
+          "share": 0.032188482307324726,
+          "cumulative": 0.9447879752821516
+        },
+        {
+          "name": "aten::sum",
+          "count": 16,
+          "total_us": 429.91299999998654,
+          "cpu_us": 301.4580000000036,
+          "share": 0.007997854057771276,
+          "cumulative": 0.952785829339923
+        },
+        {
+          "name": "void at::native::reduce_kernel<128, 4, at::native::ReduceOp<float, at::native::func_wrapper_t<float, at::native::sum_functor<float, float, float>::operator()(at::TensorIterator&)::{lambda(float, float)#1}>, unsigned int, float, 4, 4> >(at::native::ReduceOp<float, at::native::func_wrapper_t<float, at::native::sum_functor<float, float, float>::operator()(at::TensorIterator&)::{lambda(float, float)#1}>, unsigned int, float, 4, 4>) [clone .kd]",
+          "count": 8,
+          "total_us": 357.4649999999935,
+          "cpu_us": 0,
+          "share": 0.006650073156106578,
+          "cumulative": 0.9594359024960295
+        },
+        {
+          "name": "aten::copy_",
+          "count": 72,
+          "total_us": 266.43600000004153,
+          "cpu_us": 479.0490000000136,
+          "share": 0.004956622022913349,
+          "cumulative": 0.9643925245189429
+        },
+        {
+          "name": "aten::sort",
+          "count": 8,
+          "total_us": 133.08299999999872,
+          "cpu_us": 164.20599999999752,
+          "share": 0.0024757995491422637,
+          "cumulative": 0.9668683240680851
+        },
+        {
+          "name": "void at::native::radixSortKVInPlace<2, -1, 128, 8, long, long, unsigned int>(at::cuda::detail::TensorInfo<long, unsigned int>, unsigned int, unsigned int, unsigned int, at::cuda::detail::TensorInfo<long, unsigned int>, unsigned int, bool) [clone .kd]",
+          "count": 8,
+          "total_us": 133.08299999999872,
+          "cpu_us": 0,
+          "share": 0.0024757995491422637,
+          "cumulative": 0.9693441236172273
+        },
+        {
+          "name": "void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1} const&)::{lambda(int, bool)#1}) [clone .kd]",
+          "count": 24,
+          "total_us": 119.56500000001233,
+          "cpu_us": 0,
+          "share": 0.0022243184561005396,
+          "cumulative": 0.9715684420733278
+        },
+        {
+          "name": "aten::linalg_vector_norm",
+          "count": 8,
+          "total_us": 88.68000000001211,
+          "cpu_us": 125.73700000000053,
+          "share": 0.0016497516889307277,
+          "cumulative": 0.9732181937622586
+        },
+        {
+          "name": "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<float, at::native::NormTwoOps<float, float, float, true>, unsigned int, float, 4, 4> >(at::native::ReduceOp<float, at::native::NormTwoOps<float, float, float, true>, unsigned int, float, 4, 4>) [clone .kd]",
+          "count": 8,
+          "total_us": 88.68000000001211,
+          "cpu_us": 0,
+          "share": 0.0016497516889307277,
+          "cumulative": 0.9748679454511894
+        },
+        {
+          "name": "aten::fill_",
+          "count": 40,
+          "total_us": 84.55899999999951,
+          "cpu_us": 238.27699999999925,
+          "share": 0.001573086976367541,
+          "cumulative": 0.9764410324275569
+        }
+      ],
+      "kernel_table": "| kernel | count | total us | share |\n|---|---:|---:|---:|\n| _ward_merge_kernel.kd | 8 | 47325 | 88.0% |\n| aten::index_add_ | 8 | 1730 | 3.2% |\n| void at::native::indexFuncLargeIndex<float, long, unsigned int, 2, 2, -2, true, at::native::(anonymous namespace)::ReduceAdd>(at::cuda::detail::TensorInfo<float, unsigned int>, at::cuda::detail::TensorInfo<float const, unsigned int>, at::cuda::detail::TensorInfo<long const, unsigned int>, int, int, unsigned int, unsigned int, long, long, at::native::(anonymous namespace)::ReduceAdd const&, float) [clone .kd] | 8 | 1730 | 3.2% |\n| aten::sum | 16 | 430 | 0.8% |\n| void at::native::reduce_kernel<128, 4, at::native::ReduceOp<float, at::native::func_wrapper_t<float, at::native::sum_functor<float, float, float>::operator()(at::TensorIterator&)::{lambda(float, float)#1}>, unsigned int, float, 4, 4> >(at::native::ReduceOp<float, at::native::func_wrapper_t<float, at::native::sum_functor<float, float, float>::operator()(at::TensorIterator&)::{lambda(float, float)#1}>, unsigned int, float, 4, 4>) [clone .kd] | 8 | 357 | 0.7% |\n| aten::copy_ | 72 | 266 | 0.5% |\n| aten::sort | 8 | 133 | 0.2% |\n| void at::native::radixSortKVInPlace<2, -1, 128, 8, long, long, unsigned int>(at::cuda::detail::TensorInfo<long, unsigned int>, unsigned int, unsigned int, unsigned int, at::cuda::detail::TensorInfo<long, unsigned int>, unsigned int, bool) [clone .kd] | 8 | 133 | 0.2% |\n| void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1} const&)::{lambda(int, bool)#1}) [clone .kd] | 24 | 120 | 0.2% |\n| aten::linalg_vector_norm | 8 | 89 | 0.2% |"
+    },
+    {
+      "stage": "hierarchy_build",
+      "p50_ms": 13.05987499654293,
+      "p95_ms": 14.42428003065288,
+      "gpu_time_us_per_iter": 7876.076124999919,
+      "launches_per_iter": 1535.0,
+      "kernels": [
+        {
+          "name": "_nearest_open_kernel.kd",
+          "count": 448,
+          "total_us": 21919.281999999934,
+          "cpu_us": 0,
+          "share": 0.34787757336462005,
+          "cumulative": 0.34787757336462005
+        },
+        {
+          "name": "hipPointerGetAttribute",
+          "count": 6272,
+          "total_us": 9954.684999999945,
+          "cpu_us": 1037.4169999999303,
+          "share": 0.15798928365487402,
+          "cumulative": 0.5058668570194941
+        },
+        {
+          "name": "aten::mul",
+          "count": 136,
+          "total_us": 3569.014999999982,
+          "cpu_us": 713.0379999999502,
+          "share": 0.05664329139530789,
+          "cumulative": 0.562510148414802
+        },
+        {
+          "name": "aten::sum",
+          "count": 56,
+          "total_us": 3474.5550000000176,
+          "cpu_us": 427.67000000001786,
+          "share": 0.055144131177376945,
+          "cumulative": 0.6176542795921789
+        },
+        {
+          "name": "void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl<at::native::BinaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> > const&)::{lambda(int, bool)#2}>(int, at::native::gpu_kernel_impl<at::native::BinaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> > const&)::{lambda(int, bool)#2}) [clone .kd]",
+          "count": 8,
+          "total_us": 3290.8179999999834,
+          "cpu_us": 0,
+          "share": 0.05222806934208018,
+          "cumulative": 0.669882348934259
+        },
+        {
+          "name": "void at::native::reduce_kernel<128, 4, at::native::ReduceOp<float, at::native::func_wrapper_t<float, at::native::sum_functor<float, float, float>::operator()(at::TensorIterator&)::{lambda(float, float)#1}>, unsigned int, float, 4, 4> >(at::native::ReduceOp<float, at::native::func_wrapper_t<float, at::native::sum_functor<float, float, float>::operator()(at::TensorIterator&)::{lambda(float, float)#1}>, unsigned int, float, 4, 4>) [clone .kd]",
+          "count": 8,
+          "total_us": 3120.7389999999923,
+          "cpu_us": 0,
+          "share": 0.04952877153660105,
+          "cumulative": 0.7194111204708601
+        },
+        {
+          "name": "aten::index",
+          "count": 8,
+          "total_us": 1984.6429999999937,
+          "cpu_us": 147.548000000002,
+          "share": 0.031497965619269805,
+          "cumulative": 0.7509090860901299
+        },
+        {
+          "name": "void at::native::vectorized_gather_kernel<16, long>(char*, char*, long*, int, long, long, long, long, bool) [clone .kd]",
+          "count": 8,
+          "total_us": 1984.6429999999937,
+          "cpu_us": 0,
+          "share": 0.031497965619269805,
+          "cumulative": 0.7824070517093996
+        },
+        {
+          "name": "hipModuleLaunchKernel",
+          "count": 1344,
+          "total_us": 1808.5339999999208,
+          "cpu_us": 6790.310999999968,
+          "share": 0.028702966605721122,
+          "cumulative": 0.8111100183151208
+        },
+        {
+          "name": "_fix_mutual_kernel.kd",
+          "count": 448,
+          "total_us": 1084.6750000000202,
+          "cpu_us": 0,
+          "share": 0.01721471108813133,
+          "cumulative": 0.8283247294032521
+        },
+        {
+          "name": "aten::copy_",
+          "count": 312,
+          "total_us": 943.0659999998574,
+          "cpu_us": 1142.0130000000522,
+          "share": 0.01496725629984733,
+          "cumulative": 0.8432919857030994
+        },
+        {
+          "name": "_compact_kernel.kd",
+          "count": 448,
+          "total_us": 787.6190000000147,
+          "cpu_us": 0,
+          "share": 0.012500180729271818,
+          "cumulative": 0.8557921664323712
+        }
+      ],
+      "kernel_table": "| kernel | count | total us | share |\n|---|---:|---:|---:|\n| _nearest_open_kernel.kd | 448 | 21919 | 34.8% |\n| hipPointerGetAttribute | 6272 | 9955 | 15.8% |\n| aten::mul | 136 | 3569 | 5.7% |\n| aten::sum | 56 | 3475 | 5.5% |\n| void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl<at::native::BinaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> > const&)::{lambda(int, bool)#2}>(int, at::native::gpu_kernel_impl<at::native::BinaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> > const&)::{lambda(int, bool)#2}) [clone .kd] | 8 | 3291 | 5.2% |\n| void at::native::reduce_kernel<128, 4, at::native::ReduceOp<float, at::native::func_wrapper_t<float, at::native::sum_functor<float, float, float>::operator()(at::TensorIterator&)::{lambda(float, float)#1}>, unsigned int, float, 4, 4> >(at::native::ReduceOp<float, at::native::func_wrapper_t<float, at::native::sum_functor<float, float, float>::operator()(at::TensorIterator&)::{lambda(float, float)#1}>, unsigned int, float, 4, 4>) [clone .kd] | 8 | 3121 | 5.0% |\n| aten::index | 8 | 1985 | 3.1% |\n| void at::native::vectorized_gather_kernel<16, long>(char*, char*, long*, int, long, long, long, long, bool) [clone .kd] | 8 | 1985 | 3.1% |\n| hipModuleLaunchKernel | 1344 | 1809 | 2.9% |\n| _fix_mutual_kernel.kd | 448 | 1085 | 1.7% |"
+    },
+    {
+      "stage": "flat_select_prefill",
+      "p50_ms": 94.95256998343393,
+      "p95_ms": 97.99888404086232,
+      "gpu_time_us_per_iter": 176317.194875,
+      "launches_per_iter": 42.0,
+      "kernels": [
+        {
+          "name": "void at::native::radixSortKVInPlace<2, -1, 512, 8, long, long, unsigned int>(at::cuda::detail::TensorInfo<long, unsigned int>, unsigned int, unsigned int, unsigned int, at::cuda::detail::TensorInfo<long, unsigned int>, unsigned int, bool) [clone .kd]",
+          "count": 8,
+          "total_us": 273427.60400000005,
+          "cpu_us": 0,
+          "share": 0.19384638307245533,
+          "cumulative": 0.19384638307245533
+        },
+        {
+          "name": "aten::sort",
+          "count": 8,
+          "total_us": 273427.604,
+          "cpu_us": 205.43300000000113,
+          "share": 0.1938463830724553,
+          "cumulative": 0.38769276614491066
+        },
+        {
+          "name": "aten::copy_",
+          "count": 64,
+          "total_us": 235239.8729999999,
+          "cpu_us": 429.1340000000007,
+          "share": 0.16677320749032243,
+          "cumulative": 0.5544659736352331
+        },
+        {
+          "name": "__amd_rocclr_copyBuffer.kd",
+          "count": 24,
+          "total_us": 178107.61200000014,
+          "cpu_us": 0,
+          "share": 0.1262693154560659,
+          "cumulative": 0.680735289091299
+        },
+        {
+          "name": "aten::mm",
+          "count": 8,
+          "total_us": 78661.65100000007,
+          "cpu_us": 848.6529999999988,
+          "share": 0.055767143879364135,
+          "cumulative": 0.7365024329706631
+        },
+        {
+          "name": "Cijk_Alik_Bljk_BSS_BH_Bias_HA_S_UserArgs_MT32x32x64_MI16x16x1_SN_LDSB0_AFC1_AG0_AGGSUA0_AGNTAB0_AFEM1_AFEM1_ASEM1_BL1_BS1_CD1_1_CLR0_CLS0_CADS0_DTLA0_DTLB0_DTLM0_DTVA0_DTVB0_DTVMXSA0_DTVMXSB0_DTVSM0_DPLB0_EPS0_ELFLR0_EMLLn1_FDSI0_GRPM1_GRVWA8_GRVWB8_GSUAMB_GLS0_HPLR0_ISA1151_ICIW0_IU1_K1_LDSSI0_LDSTI0_LBSPPA0_LBSPPB0_LBSPPMXSA0_LBSPPMXSB0_LBSPPM0_LPA0_LPB0_LPMXSA0_LPMXSB0_LPM0_LRVW16_LWPMn1_MIAV1_MIWT1_1_MXLIBL_MXSFNS_MO40_MGRIPM1_NTn1_NTA0_NTB0_NTC0_NTD0_NTE0_NTMXSA0_NTMXSB0_NTM0_NTWS0_NVn1_NVA0_NVB0_NVC0_NVD0_NVE0_NVMXSA0_NVMXSB0_NVM0_NVWS0_NEPBS0_NLCA1_NLCB1_ONLL1_PAP0_PGL0_PGR2_PLR3_PKA0_SGROB0_SIA3_SS1_SPO0_SRVW0_SSO0_SVW1_SK0_SKFTR0_SKFDPO0_SKWS0_SKXCCM0_SNLL0_SIP1_SGRO0_TDMI0_TDMIM0_TDMLWS0_TDMPLB0_TDMS0_TIN0_THn1_THA0_THB0_THC0_THD0_THE0_THMXSA0_THMXSB0_THM0_THWS0_TLDS0_TLDSM1_ULSGRO0_USL1_USLMX0_UDFMAC0_UIOFGRO0_UPLRP0_USFGROn1_USI0_VSn1_VWA1_VWB1_WSGRA1_WSGRB1_WS32_WG32_4_1_WGMXCC1.kd",
+          "count": 8,
+          "total_us": 78661.65100000007,
+          "cpu_us": 0,
+          "share": 0.055767143879364135,
+          "cumulative": 0.7922695768500272
+        },
+        {
+          "name": "_pack_scores.kd",
+          "count": 8,
+          "total_us": 62583.261000000115,
+          "cpu_us": 0,
+          "share": 0.04436837615608655,
+          "cumulative": 0.8366379530061138
+        },
+        {
+          "name": "_expand_in_order.kd",
+          "count": 8,
+          "total_us": 42844.26800000007,
+          "cpu_us": 0,
+          "share": 0.030374425499434768,
+          "cumulative": 0.8670123785055486
+        },
+        {
+          "name": "void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1} const&)::{lambda(int, bool)#1}) [clone .kd]",
+          "count": 8,
+          "total_us": 38819.822,
+          "cpu_us": 0,
+          "share": 0.02752129622661115,
+          "cumulative": 0.8945336747321597
+        },
+        {
+          "name": "aten::bitwise_and",
+          "count": 8,
+          "total_us": 21346.72800000006,
+          "cpu_us": 171.30200000000286,
+          "share": 0.015133753698223971,
+          "cumulative": 0.9096674284303837
+        },
+        {
+          "name": "void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl_nocast<at::native::AUnaryFunctor<long, long, long, at::native::BitwiseAndFunctor<long> > >(at::TensorIteratorBase&, at::native::AUnaryFunctor<long, long, long, at::native::BitwiseAndFunctor<long> > const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::AUnaryFunctor<long, long, long, at::native::BitwiseAndFunctor<long> > >(at::TensorIteratorBase&, at::native::AUnaryFunctor<long, long, long, at::native::BitwiseAndFunctor<long> > const&)::{lambda(int, bool)#1}) [clone .kd]",
+          "count": 8,
+          "total_us": 21346.72800000006,
+          "cpu_us": 0,
+          "share": 0.015133753698223971,
+          "cumulative": 0.9248011821286077
+        },
+        {
+          "name": "aten::sub",
+          "count": 8,
+          "total_us": 20026.325000000114,
+          "cpu_us": 121.81000000000176,
+          "share": 0.014197654555329791,
+          "cumulative": 0.9389988366839376
+        }
+      ],
+      "kernel_table": "| kernel | count | total us | share |\n|---|---:|---:|---:|\n| void at::native::radixSortKVInPlace<2, -1, 512, 8, long, long, unsigned int>(at::cuda::detail::TensorInfo<long, unsigned int>, unsigned int, unsigned int, unsigned int, at::cuda::detail::TensorInfo<long, unsigned int>, unsigned int, bool) [clone .kd] | 8 | 273428 | 19.4% |\n| aten::sort | 8 | 273428 | 19.4% |\n| aten::copy_ | 64 | 235240 | 16.7% |\n| __amd_rocclr_copyBuffer.kd | 24 | 178108 | 12.6% |\n| aten::mm | 8 | 78662 | 5.6% |\n| Cijk_Alik_Bljk_BSS_BH_Bias_HA_S_UserArgs_MT32x32x64_MI16x16x1_SN_LDSB0_AFC1_AG0_AGGSUA0_AGNTAB0_AFEM1_AFEM1_ASEM1_BL1_BS1_CD1_1_CLR0_CLS0_CADS0_DTLA0_DTLB0_DTLM0_DTVA0_DTVB0_DTVMXSA0_DTVMXSB0_DTVSM0_DPLB0_EPS0_ELFLR0_EMLLn1_FDSI0_GRPM1_GRVWA8_GRVWB8_GSUAMB_GLS0_HPLR0_ISA1151_ICIW0_IU1_K1_LDSSI0_LDSTI0_LBSPPA0_LBSPPB0_LBSPPMXSA0_LBSPPMXSB0_LBSPPM0_LPA0_LPB0_LPMXSA0_LPMXSB0_LPM0_LRVW16_LWPMn1_MIAV1_MIWT1_1_MXLIBL_MXSFNS_MO40_MGRIPM1_NTn1_NTA0_NTB0_NTC0_NTD0_NTE0_NTMXSA0_NTMXSB0_NTM0_NTWS0_NVn1_NVA0_NVB0_NVC0_NVD0_NVE0_NVMXSA0_NVMXSB0_NVM0_NVWS0_NEPBS0_NLCA1_NLCB1_ONLL1_PAP0_PGL0_PGR2_PLR3_PKA0_SGROB0_SIA3_SS1_SPO0_SRVW0_SSO0_SVW1_SK0_SKFTR0_SKFDPO0_SKWS0_SKXCCM0_SNLL0_SIP1_SGRO0_TDMI0_TDMIM0_TDMLWS0_TDMPLB0_TDMS0_TIN0_THn1_THA0_THB0_THC0_THD0_THE0_THMXSA0_THMXSB0_THM0_THWS0_TLDS0_TLDSM1_ULSGRO0_USL1_USLMX0_UDFMAC0_UIOFGRO0_UPLRP0_USFGROn1_USI0_VSn1_VWA1_VWB1_WSGRA1_WSGRB1_WS32_WG32_4_1_WGMXCC1.kd | 8 | 78662 | 5.6% |\n| _pack_scores.kd | 8 | 62583 | 4.4% |\n| _expand_in_order.kd | 8 | 42844 | 3.0% |\n| void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1} const&)::{lambda(int, bool)#1}) [clone .kd] | 8 | 38820 | 2.8% |\n| aten::bitwise_and | 8 | 21347 | 1.5% |"
+    },
+    {
+      "stage": "flat_select_decode",
+      "p50_ms": 0.26562996208667755,
+      "p95_ms": 0.37020607851445675,
+      "gpu_time_us_per_iter": 138.616125,
+      "launches_per_iter": 42.0,
+      "kernels": [
+        {
+          "name": "aten::sort",
+          "count": 8,
+          "total_us": 251.98699999999985,
+          "cpu_us": 81.61299999999898,
+          "share": 0.22723456596409675,
+          "cumulative": 0.22723456596409675
+        },
+        {
+          "name": "void at::native::radixSortKVInPlace<-2, -1, 512, 8, long, long, unsigned int>(at::cuda::detail::TensorInfo<long, unsigned int>, unsigned int, unsigned int, unsigned int, at::cuda::detail::TensorInfo<long, unsigned int>, unsigned int, bool) [clone .kd]",
+          "count": 8,
+          "total_us": 251.98699999999985,
+          "cpu_us": 0,
+          "share": 0.22723456596409675,
+          "cumulative": 0.4544691319281935
+        },
+        {
+          "name": "aten::copy_",
+          "count": 64,
+          "total_us": 89.2249999999994,
+          "cpu_us": 153.824,
+          "share": 0.08046051640817346,
+          "cumulative": 0.5349296483363669
+        },
+        {
+          "name": "aten::mm",
+          "count": 8,
+          "total_us": 85.07199999999932,
+          "cpu_us": 272.32200000000023,
+          "share": 0.07671546149482908,
+          "cumulative": 0.611645109831196
+        },
+        {
+          "name": "Cijk_Alik_Bljk_BSS_BH_Bias_HA_S_UserArgs_MT32x32x64_MI16x16x1_SN_LDSB0_AFC1_AG0_AGGSUA0_AGNTAB0_AFEM1_AFEM1_ASEM1_BL1_BS1_CD1_1_CLR0_CLS0_CADS0_DTLA0_DTLB0_DTLM0_DTVA0_DTVB0_DTVMXSA0_DTVMXSB0_DTVSM0_DPLB0_EPS0_ELFLR0_EMLLn1_FDSI0_GRPM1_GRVWA8_GRVWB8_GSUAMB_GLS0_HPLR0_ISA1151_ICIW0_IU1_K1_LDSSI0_LDSTI0_LBSPPA0_LBSPPB0_LBSPPMXSA0_LBSPPMXSB0_LBSPPM0_LPA0_LPB0_LPMXSA0_LPMXSB0_LPM0_LRVW16_LWPMn1_MIAV1_MIWT1_1_MXLIBL_MXSFNS_MO40_MGRIPM1_NTn1_NTA0_NTB0_NTC0_NTD0_NTE0_NTMXSA0_NTMXSB0_NTM0_NTWS0_NVn1_NVA0_NVB0_NVC0_NVD0_NVE0_NVMXSA0_NVMXSB0_NVM0_NVWS0_NEPBS0_NLCA1_NLCB1_ONLL1_PAP0_PGL0_PGR2_PLR3_PKA0_SGROB0_SIA3_SS1_SPO0_SRVW0_SSO0_SVW1_SK0_SKFTR0_SKFDPO0_SKWS0_SKXCCM0_SNLL0_SIP1_SGRO0_TDMI0_TDMIM0_TDMLWS0_TDMPLB0_TDMS0_TIN0_THn1_THA0_THB0_THC0_THD0_THE0_THMXSA0_THMXSB0_THM0_THWS0_TLDS0_TLDSM1_ULSGRO0_USL1_USLMX0_UDFMAC0_UIOFGRO0_UPLRP0_USFGROn1_USI0_VSn1_VWA1_VWB1_WSGRA1_WSGRB1_WS32_WG32_4_1_WGMXCC1.kd",
+          "count": 8,
+          "total_us": 85.07199999999932,
+          "cpu_us": 0,
+          "share": 0.07671546149482908,
+          "cumulative": 0.6883605713260251
+        },
+        {
+          "name": "_expand_in_order.kd",
+          "count": 8,
+          "total_us": 64.83600000000024,
+          "cpu_us": 0,
+          "share": 0.05846722378078329,
+          "cumulative": 0.7468277951068084
+        },
+        {
+          "name": "void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1} const&)::{lambda(int, bool)#1}) [clone .kd]",
+          "count": 24,
+          "total_us": 42.57799999999918,
+          "cpu_us": 0,
+          "share": 0.03839560512891193,
+          "cumulative": 0.7852234002357203
+        },
+        {
+          "name": "__amd_rocclr_copyBuffer.kd",
+          "count": 32,
+          "total_us": 37.59800000000058,
+          "cpu_us": 0,
+          "share": 0.03390478560845697,
+          "cumulative": 0.8191281858441773
+        },
+        {
+          "name": "aten::where",
+          "count": 16,
+          "total_us": 13.417999999999893,
+          "cpu_us": 57.85400000000095,
+          "share": 0.012099963117566491,
+          "cumulative": 0.8312281489617438
+        },
+        {
+          "name": "void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl_nocast<at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(bool, unsigned int, unsigned int)#1}>(at::TensorIteratorBase&, at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(bool, unsigned int, unsigned int)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(bool, unsigned int, unsigned int)#1}>(at::TensorIteratorBase&, at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(bool, unsigned int, unsigned int)#1} const&)::{lambda(int, bool)#1}) [clone .kd]",
+          "count": 8,
+          "total_us": 13.417999999999893,
+          "cpu_us": 0,
+          "share": 0.012099963117566491,
+          "cumulative": 0.8433281120793102
+        },
+        {
+          "name": "aten::eq",
+          "count": 8,
+          "total_us": 11.174000000000547,
+          "cpu_us": 39.53499999999963,
+          "share": 0.01007638902039765,
+          "cumulative": 0.8534045010997079
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::AUnaryFunctor<long, long, bool, at::native::(anonymous namespace)::CompareEqFunctor<long> >, std::array<char*, 2ul> >(int, at::native::AUnaryFunctor<long, long, bool, at::native::(anonymous namespace)::CompareEqFunctor<long> >, std::array<char*, 2ul>) [clone .kd]",
+          "count": 8,
+          "total_us": 11.174000000000547,
+          "cpu_us": 0,
+          "share": 0.01007638902039765,
+          "cumulative": 0.8634808901201055
+        }
+      ],
+      "kernel_table": "| kernel | count | total us | share |\n|---|---:|---:|---:|\n| aten::sort | 8 | 252 | 22.7% |\n| void at::native::radixSortKVInPlace<-2, -1, 512, 8, long, long, unsigned int>(at::cuda::detail::TensorInfo<long, unsigned int>, unsigned int, unsigned int, unsigned int, at::cuda::detail::TensorInfo<long, unsigned int>, unsigned int, bool) [clone .kd] | 8 | 252 | 22.7% |\n| aten::copy_ | 64 | 89 | 8.0% |\n| aten::mm | 8 | 85 | 7.7% |\n| Cijk_Alik_Bljk_BSS_BH_Bias_HA_S_UserArgs_MT32x32x64_MI16x16x1_SN_LDSB0_AFC1_AG0_AGGSUA0_AGNTAB0_AFEM1_AFEM1_ASEM1_BL1_BS1_CD1_1_CLR0_CLS0_CADS0_DTLA0_DTLB0_DTLM0_DTVA0_DTVB0_DTVMXSA0_DTVMXSB0_DTVSM0_DPLB0_EPS0_ELFLR0_EMLLn1_FDSI0_GRPM1_GRVWA8_GRVWB8_GSUAMB_GLS0_HPLR0_ISA1151_ICIW0_IU1_K1_LDSSI0_LDSTI0_LBSPPA0_LBSPPB0_LBSPPMXSA0_LBSPPMXSB0_LBSPPM0_LPA0_LPB0_LPMXSA0_LPMXSB0_LPM0_LRVW16_LWPMn1_MIAV1_MIWT1_1_MXLIBL_MXSFNS_MO40_MGRIPM1_NTn1_NTA0_NTB0_NTC0_NTD0_NTE0_NTMXSA0_NTMXSB0_NTM0_NTWS0_NVn1_NVA0_NVB0_NVC0_NVD0_NVE0_NVMXSA0_NVMXSB0_NVM0_NVWS0_NEPBS0_NLCA1_NLCB1_ONLL1_PAP0_PGL0_PGR2_PLR3_PKA0_SGROB0_SIA3_SS1_SPO0_SRVW0_SSO0_SVW1_SK0_SKFTR0_SKFDPO0_SKWS0_SKXCCM0_SNLL0_SIP1_SGRO0_TDMI0_TDMIM0_TDMLWS0_TDMPLB0_TDMS0_TIN0_THn1_THA0_THB0_THC0_THD0_THE0_THMXSA0_THMXSB0_THM0_THWS0_TLDS0_TLDSM1_ULSGRO0_USL1_USLMX0_UDFMAC0_UIOFGRO0_UPLRP0_USFGROn1_USI0_VSn1_VWA1_VWB1_WSGRA1_WSGRB1_WS32_WG32_4_1_WGMXCC1.kd | 8 | 85 | 7.7% |\n| _expand_in_order.kd | 8 | 65 | 5.8% |\n| void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1} const&)::{lambda(int, bool)#1}) [clone .kd] | 24 | 43 | 3.8% |\n| __amd_rocclr_copyBuffer.kd | 32 | 38 | 3.4% |\n| aten::where | 16 | 13 | 1.2% |\n| void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl_nocast<at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(bool, unsigned int, unsigned int)#1}>(at::TensorIteratorBase&, at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(bool, unsigned int, unsigned int)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(bool, unsigned int, unsigned int)#1}>(at::TensorIteratorBase&, at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(bool, unsigned int, unsigned int)#1} const&)::{lambda(int, bool)#1}) [clone .kd] | 8 | 13 | 1.2% |"
+    },
+    {
+      "stage": "tree_select_prefill",
+      "p50_ms": 288.6330290348269,
+      "p95_ms": 293.73043100349605,
+      "gpu_time_us_per_iter": 445350.63362500333,
+      "launches_per_iter": 19940.0,
+      "kernels": [
+        {
+          "name": "aten::bmm",
+          "count": 1872,
+          "total_us": 796105.8980000061,
+          "cpu_us": 208537.33699999438,
+          "share": 0.22344918753117451,
+          "cumulative": 0.22344918753117451
+        },
+        {
+          "name": "Cijk_Alik_Bljk_S_B_Bias_HA_S_SAV_UserArgs_MT40x64x8_SN_LDSB0_AFC1_AG0_AGGSUA0_AGNTAB0_AFEM1_AFEM1_ASEM1_BL1_BS1_CD1_1_CLR0_CLS0_CADS0_DTLA0_DTLB0_DTLM0_DTVA0_DTVB0_DTVMXSA0_DTVMXSB0_DTVSM0_DPLB0_EPS0_ELFLR0_EMLLn1_FDSI0_GRPM1_GRVWA1_GRVWB1_GSUAMB_GLS0_HPLR0_ISA1151_ICIW0_IU1_K1_LDSSI0_LDSTI0_LBSPPA0_LBSPPB0_LBSPPMXSA0_LBSPPMXSB0_LBSPPM0_LPA1_LPB1_LPMXSA0_LPMXSB0_LPM0_LRVW1_LWPMn1_MIAV0_MXLIBL_MXSFNS_MO40_MGRIPM1_NTn1_NTA0_NTB0_NTC0_NTD0_NTE0_NTMXSA0_NTMXSB0_NTM0_NTWS0_NVn1_NVA0_NVB0_NVC0_NVD0_NVE0_NVMXSA0_NVMXSB0_NVM0_NVWS0_NEPBS0_NLCA1_NLCB1_ONLL1_PAP0_PGL0_PGR0_PLR1_PKA0_SGROB0_SIA1_SS0_SPO0_SRVW0_SSO0_SVW1_SK0_SKFTR0_SKFDPO0_SKWS0_SKXCCM0_SNLL0_SIP1_SGRO0_TDMI0_TDMIM0_TDMLWS0_TDMPLB0_TDMS0_TIN0_THn1_THA0_THB0_THC0_THD0_THE0_THMXSA0_THMXSB0_THM0_THWS0_TT5_8_TLDS0_TLDSMn1_ULSGRO0_USL1_USLMX0_UDFMAC0_UIOFGRO0_UPLRP0_USFGROn1_USI0_VSn1_VWA1_VWB1_WSGRA0_WSGRB0_WS32_WG8_8_1_WGMXCC1.kd",
+          "count": 1872,
+          "total_us": 796105.8980000061,
+          "cpu_us": 0,
+          "share": 0.22344918753117451,
+          "cumulative": 0.44689837506234903
+        },
+        {
+          "name": "aten::index",
+          "count": 4264,
+          "total_us": 350239.79200000403,
+          "cpu_us": 67023.015000018,
+          "share": 0.0983045059207536,
+          "cumulative": 0.5452028809831027
+        },
+        {
+          "name": "void at::native::vectorized_gather_kernel<16, long>(char*, char*, long*, int, long, long, long, long, bool) [clone .kd]",
+          "count": 3752,
+          "total_us": 346125.0440000038,
+          "cpu_us": 0,
+          "share": 0.09714958783786361,
+          "cumulative": 0.6423524688209663
+        },
+        {
+          "name": "aten::sort",
+          "count": 7488,
+          "total_us": 328220.1359999791,
+          "cpu_us": 126074.44399998998,
+          "share": 0.09212407910155487,
+          "cumulative": 0.7344765479225212
+        },
+        {
+          "name": "void at::native::radixSortKVInPlace<2, -1, 128, 8, long, long, unsigned int>(at::cuda::detail::TensorInfo<long, unsigned int>, unsigned int, unsigned int, unsigned int, at::cuda::detail::TensorInfo<long, unsigned int>, unsigned int, bool) [clone .kd]",
+          "count": 3456,
+          "total_us": 249722.51999999516,
+          "cpu_us": 0,
+          "share": 0.07009154729593017,
+          "cumulative": 0.8045680952184513
+        },
+        {
+          "name": "aten::copy_",
+          "count": 24864,
+          "total_us": 112418.81200004261,
+          "cpu_us": 123017.63600003574,
+          "share": 0.03155345572459153,
+          "cumulative": 0.8361215509430429
+        },
+        {
+          "name": "__amd_rocclr_copyBuffer.kd",
+          "count": 17368,
+          "total_us": 66474.75600003562,
+          "cpu_us": 0,
+          "share": 0.018657982885011755,
+          "cumulative": 0.8547795338280546
+        },
+        {
+          "name": "void at::native::radixSortKVInPlace<2, -1, 128, 8, float, long, unsigned int>(at::cuda::detail::TensorInfo<float, unsigned int>, unsigned int, unsigned int, unsigned int, at::cuda::detail::TensorInfo<long, unsigned int>, unsigned int, bool) [clone .kd]",
+          "count": 1152,
+          "total_us": 51741.45199999674,
+          "cpu_us": 0,
+          "share": 0.014522672724982684,
+          "cumulative": 0.8693022065530372
+        },
+        {
+          "name": "_expand_in_order.kd",
+          "count": 8,
+          "total_us": 40161.94200000004,
+          "cpu_us": 0,
+          "share": 0.011272562271073759,
+          "cumulative": 0.880574768824111
+        },
+        {
+          "name": "aten::cat",
+          "count": 5616,
+          "total_us": 34259.938999998434,
+          "cpu_us": 62660.63400001357,
+          "share": 0.009616001531516339,
+          "cumulative": 0.8901907703556273
+        },
+        {
+          "name": "void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1} const&)::{lambda(int, bool)#1}) [clone .kd]",
+          "count": 7992,
+          "total_us": 31128.83300001098,
+          "cpu_us": 0,
+          "share": 0.008737169841500175,
+          "cumulative": 0.8989279401971275
+        }
+      ],
+      "kernel_table": "| kernel | count | total us | share |\n|---|---:|---:|---:|\n| aten::bmm | 1872 | 796106 | 22.3% |\n| Cijk_Alik_Bljk_S_B_Bias_HA_S_SAV_UserArgs_MT40x64x8_SN_LDSB0_AFC1_AG0_AGGSUA0_AGNTAB0_AFEM1_AFEM1_ASEM1_BL1_BS1_CD1_1_CLR0_CLS0_CADS0_DTLA0_DTLB0_DTLM0_DTVA0_DTVB0_DTVMXSA0_DTVMXSB0_DTVSM0_DPLB0_EPS0_ELFLR0_EMLLn1_FDSI0_GRPM1_GRVWA1_GRVWB1_GSUAMB_GLS0_HPLR0_ISA1151_ICIW0_IU1_K1_LDSSI0_LDSTI0_LBSPPA0_LBSPPB0_LBSPPMXSA0_LBSPPMXSB0_LBSPPM0_LPA1_LPB1_LPMXSA0_LPMXSB0_LPM0_LRVW1_LWPMn1_MIAV0_MXLIBL_MXSFNS_MO40_MGRIPM1_NTn1_NTA0_NTB0_NTC0_NTD0_NTE0_NTMXSA0_NTMXSB0_NTM0_NTWS0_NVn1_NVA0_NVB0_NVC0_NVD0_NVE0_NVMXSA0_NVMXSB0_NVM0_NVWS0_NEPBS0_NLCA1_NLCB1_ONLL1_PAP0_PGL0_PGR0_PLR1_PKA0_SGROB0_SIA1_SS0_SPO0_SRVW0_SSO0_SVW1_SK0_SKFTR0_SKFDPO0_SKWS0_SKXCCM0_SNLL0_SIP1_SGRO0_TDMI0_TDMIM0_TDMLWS0_TDMPLB0_TDMS0_TIN0_THn1_THA0_THB0_THC0_THD0_THE0_THMXSA0_THMXSB0_THM0_THWS0_TT5_8_TLDS0_TLDSMn1_ULSGRO0_USL1_USLMX0_UDFMAC0_UIOFGRO0_UPLRP0_USFGROn1_USI0_VSn1_VWA1_VWB1_WSGRA0_WSGRB0_WS32_WG8_8_1_WGMXCC1.kd | 1872 | 796106 | 22.3% |\n| aten::index | 4264 | 350240 | 9.8% |\n| void at::native::vectorized_gather_kernel<16, long>(char*, char*, long*, int, long, long, long, long, bool) [clone .kd] | 3752 | 346125 | 9.7% |\n| aten::sort | 7488 | 328220 | 9.2% |\n| void at::native::radixSortKVInPlace<2, -1, 128, 8, long, long, unsigned int>(at::cuda::detail::TensorInfo<long, unsigned int>, unsigned int, unsigned int, unsigned int, at::cuda::detail::TensorInfo<long, unsigned int>, unsigned int, bool) [clone .kd] | 3456 | 249723 | 7.0% |\n| aten::copy_ | 24864 | 112419 | 3.2% |\n| __amd_rocclr_copyBuffer.kd | 17368 | 66475 | 1.9% |\n| void at::native::radixSortKVInPlace<2, -1, 128, 8, float, long, unsigned int>(at::cuda::detail::TensorInfo<float, unsigned int>, unsigned int, unsigned int, unsigned int, at::cuda::detail::TensorInfo<long, unsigned int>, unsigned int, bool) [clone .kd] | 1152 | 51741 | 1.5% |\n| _expand_in_order.kd | 8 | 40162 | 1.1% |"
+    },
+    {
+      "stage": "tree_select_decode",
+      "p50_ms": 1.11814693082124,
+      "p95_ms": 1.1797579936683178,
+      "gpu_time_us_per_iter": 865.6741250000044,
+      "launches_per_iter": 353.0,
+      "kernels": [
+        {
+          "name": "aten::sort",
+          "count": 128,
+          "total_us": 1150.438000000001,
+          "cpu_us": 773.3590000000262,
+          "share": 0.16611880365489656,
+          "cumulative": 0.16611880365489656
+        },
+        {
+          "name": "void at::native::radixSortKVInPlace<-2, -1, 128, 8, long, long, unsigned int>(at::cuda::detail::TensorInfo<long, unsigned int>, unsigned int, unsigned int, unsigned int, at::cuda::detail::TensorInfo<long, unsigned int>, unsigned int, bool) [clone .kd]",
+          "count": 72,
+          "total_us": 796.9889999999994,
+          "cpu_us": 0,
+          "share": 0.11508213324500072,
+          "cumulative": 0.2812009368998973
+        },
+        {
+          "name": "aten::copy_",
+          "count": 448,
+          "total_us": 726.1900000000171,
+          "cpu_us": 838.7479999999681,
+          "share": 0.1048590311048071,
+          "cumulative": 0.3860599680047044
+        },
+        {
+          "name": "__amd_rocclr_copyBuffer.kd",
+          "count": 440,
+          "total_us": 656.391000000014,
+          "cpu_us": 0,
+          "share": 0.0947803251021293,
+          "cumulative": 0.4808402931068337
+        },
+        {
+          "name": "aten::cat",
+          "count": 96,
+          "total_us": 230.73300000000688,
+          "cpu_us": 394.77500000001703,
+          "share": 0.03331695399813494,
+          "cumulative": 0.5141572471049686
+        },
+        {
+          "name": "void at::native::radixSortKVInPlace<-2, -1, 128, 8, float, long, unsigned int>(at::cuda::detail::TensorInfo<float, unsigned int>, unsigned int, unsigned int, unsigned int, at::cuda::detail::TensorInfo<long, unsigned int>, unsigned int, bool) [clone .kd]",
+          "count": 24,
+          "total_us": 221.51300000000538,
+          "cpu_us": 0,
+          "share": 0.03198562161021103,
+          "cumulative": 0.5461428687151796
+        },
+        {
+          "name": "aten::bmm",
+          "count": 32,
+          "total_us": 200.46500000000287,
+          "cpu_us": 1257.199,
+          "share": 0.02894637170771418,
+          "cumulative": 0.5750892404228938
+        },
+        {
+          "name": "aten::arange",
+          "count": 304,
+          "total_us": 188.32000000000164,
+          "cpu_us": 444.9910000000003,
+          "share": 0.02719268061754772,
+          "cumulative": 0.6022819210404415
+        },
+        {
+          "name": "void (anonymous namespace)::elementwise_kernel_with_index_grid_stride<int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>(int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}, function_traits<at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>::result_type*) [clone .kd]",
+          "count": 152,
+          "total_us": 188.32000000000164,
+          "cpu_us": 0,
+          "share": 0.02719268061754772,
+          "cumulative": 0.6294746016579893
+        },
+        {
+          "name": "void at::native::(anonymous namespace)::CatArrayBatchedCopy_contig<at::native::(anonymous namespace)::OpaqueType<1u>, unsigned int, 2, 128, 1>(at::native::(anonymous namespace)::OpaqueType<1u>*, at::native::(anonymous namespace)::CatArrInputTensorMetadata<at::native::(anonymous namespace)::OpaqueType<1u>, unsigned int, 128, 1>, at::native::(anonymous namespace)::TensorSizeStride<unsigned int, 4u>, int, unsigned int) [clone .kd]",
+          "count": 64,
+          "total_us": 137.30900000000247,
+          "cpu_us": 0,
+          "share": 0.01982688924657442,
+          "cumulative": 0.6493014909045637
+        },
+        {
+          "name": "aten::index",
+          "count": 72,
+          "total_us": 136.90400000000147,
+          "cpu_us": 441.25600000000713,
+          "share": 0.019768408810879146,
+          "cumulative": 0.6690698997154428
+        },
+        {
+          "name": "aten::_unique2",
+          "count": 8,
+          "total_us": 136.73999999999427,
+          "cpu_us": 172.23400000000348,
+          "share": 0.019744727844325016,
+          "cumulative": 0.6888146275597679
+        }
+      ],
+      "kernel_table": "| kernel | count | total us | share |\n|---|---:|---:|---:|\n| aten::sort | 128 | 1150 | 16.6% |\n| void at::native::radixSortKVInPlace<-2, -1, 128, 8, long, long, unsigned int>(at::cuda::detail::TensorInfo<long, unsigned int>, unsigned int, unsigned int, unsigned int, at::cuda::detail::TensorInfo<long, unsigned int>, unsigned int, bool) [clone .kd] | 72 | 797 | 11.5% |\n| aten::copy_ | 448 | 726 | 10.5% |\n| __amd_rocclr_copyBuffer.kd | 440 | 656 | 9.5% |\n| aten::cat | 96 | 231 | 3.3% |\n| void at::native::radixSortKVInPlace<-2, -1, 128, 8, float, long, unsigned int>(at::cuda::detail::TensorInfo<float, unsigned int>, unsigned int, unsigned int, unsigned int, at::cuda::detail::TensorInfo<long, unsigned int>, unsigned int, bool) [clone .kd] | 24 | 222 | 3.2% |\n| aten::bmm | 32 | 200 | 2.9% |\n| aten::arange | 304 | 188 | 2.7% |\n| void (anonymous namespace)::elementwise_kernel_with_index_grid_stride<int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>(int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}, function_traits<at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>::result_type*) [clone .kd] | 152 | 188 | 2.7% |\n| void at::native::(anonymous namespace)::CatArrayBatchedCopy_contig<at::native::(anonymous namespace)::OpaqueType<1u>, unsigned int, 2, 128, 1>(at::native::(anonymous namespace)::OpaqueType<1u>*, at::native::(anonymous namespace)::CatArrInputTensorMetadata<at::native::(anonymous namespace)::OpaqueType<1u>, unsigned int, 128, 1>, at::native::(anonymous namespace)::TensorSizeStride<unsigned int, 4u>, int, unsigned int) [clone .kd] | 64 | 137 | 2.0% |"
+    },
+    {
+      "stage": "sparse_read_prefill_flat",
+      "p50_ms": 299.3165989755653,
+      "p95_ms": 303.51460503879935,
+      "gpu_time_us_per_iter": 299142.79299999995,
+      "launches_per_iter": 1.0,
+      "kernels": [
+        {
+          "name": "_sparse_read_kernel.kd",
+          "count": 8,
+          "total_us": 2393142.3439999996,
+          "cpu_us": 0,
+          "share": 1.0,
+          "cumulative": 1.0
+        }
+      ],
+      "kernel_table": "| kernel | count | total us | share |\n|---|---:|---:|---:|\n| _sparse_read_kernel.kd | 8 | 2393142 | 100.0% |"
+    },
+    {
+      "stage": "sparse_read_decode_flat",
+      "p50_ms": 0.1397274318151176,
+      "p95_ms": 0.2812891034409404,
+      "gpu_time_us_per_iter": 72.39012500000001,
+      "launches_per_iter": 1.0,
+      "kernels": [
+        {
+          "name": "_sparse_read_kernel.kd",
+          "count": 8,
+          "total_us": 579.1210000000001,
+          "cpu_us": 0,
+          "share": 1.0,
+          "cumulative": 1.0
+        }
+      ],
+      "kernel_table": "| kernel | count | total us | share |\n|---|---:|---:|---:|\n| _sparse_read_kernel.kd | 8 | 579 | 100.0% |"
+    },
+    {
+      "stage": "sparse_read_prefill_tree",
+      "p50_ms": 229.007312504109,
+      "p95_ms": 230.63187906518579,
+      "gpu_time_us_per_iter": 230973.589375,
+      "launches_per_iter": 1.0,
+      "kernels": [
+        {
+          "name": "_sparse_read_kernel.kd",
+          "count": 8,
+          "total_us": 1847788.715,
+          "cpu_us": 0,
+          "share": 1.0,
+          "cumulative": 1.0
+        }
+      ],
+      "kernel_table": "| kernel | count | total us | share |\n|---|---:|---:|---:|\n| _sparse_read_kernel.kd | 8 | 1847789 | 100.0% |"
+    },
+    {
+      "stage": "sparse_read_decode_tree",
+      "p50_ms": 0.13876601587980986,
+      "p95_ms": 0.296527985483408,
+      "gpu_time_us_per_iter": 52.893124999999976,
+      "launches_per_iter": 1.0,
+      "kernels": [
+        {
+          "name": "_sparse_read_kernel.kd",
+          "count": 8,
+          "total_us": 423.1449999999998,
+          "cpu_us": 0,
+          "share": 1.0,
+          "cumulative": 1.0
+        }
+      ],
+      "kernel_table": "| kernel | count | total us | share |\n|---|---:|---:|---:|\n| _sparse_read_kernel.kd | 8 | 423 | 100.0% |"
+    }
+  ]
+}
