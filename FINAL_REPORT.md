@@ -98,9 +98,23 @@ overnight receipt). The evidence chain is fail-closed end-to-end:
 - `lsa_rocm_lab.gate_manifest` — the required gate-id set, enforced at receipt
   **write** (adapter) and receipt **read** (`run.validate_receipt`); a skipped
   suite writes `status: UNVERIFIED, correctness_pass: false` and cannot validate.
-- `run.campaign_exit_code` — any mandatory stage FAIL/TIMEOUT (kernel included,
-  whenever an adapter ran) fails the campaign; BLOCKED without an adapter remains
-  a legitimate, non-claimable outcome.
+- `lsa_rocm_lab.evidence.auditor` (**F12**) — an *independent* auditor that
+  trusts nothing the adapter asserted: it re-verifies the 16-gate manifest,
+  provenance SHAs and device, then **recomputes every speedup from the raw
+  stage rows** (`baseline_p50 / candidate_p50`), rejecting altered numbers,
+  swapped baselines, duplicate/missing rows, NaN/Inf, mixed seed/dtype,
+  replayed run ids, corrupted bundle checksums and scope-mislabeled
+  comparisons. All six v0.2.1 claim receipts are APPROVED with **111
+  recomputed comparisons** (`evidence/audit-v0.2.1.json`);
+  `scripts/render_tables.py` now refuses to emit any table from a receipt the
+  auditor has not approved.
+- `run.campaign_exit_code` — **fail-closed (F11)**: any mandatory stage that is
+  not PASS fails the campaign; a kernel adapter that was *configured and
+  attempted* fails it on **anything** other than a verified PASS (BLOCKED from
+  adapter exit 78 included), a PASS record without an adapter run is rejected
+  as fabricated, and an explicitly configured E2E adapter that failed also
+  fails the campaign. `scripts/campaign.sh` propagates every phase's exit code
+  instead of echoing them (it used to always exit 0).
 - Upstream failures are triaged (`evidence/upstream-test-classification.json`):
   classified ones stay visible with reasons; any new failure exits nonzero.
 
@@ -129,9 +143,21 @@ for the unblocking path.
 
 ## 8. CI and upstream tracking
 
-- Self-hosted gfx1151 runner registered for this repository (labels
-  `rocm,gfx1151`); the regression workflow runs preflight → triaged upstream
-  tests → 16 gates → repo tests → small validated receipt, per PR.
+- **Runner security (F10):** this repository is public, so untrusted PR code
+  must never reach the persistent gfx1151 host (the runner user's `$HOME`
+  holds live credentials). Enforced routing: `pull_request` events run **only**
+  the GitHub-hosted CPU workflow (`cpu-pr.yml` — ephemeral runner, `contents:
+  read`, zero secrets, GPU tests skip loudly); the persistent runner is
+  reachable **only** from the trusted GPU workflow (`rocm-regression.yml` —
+  `push` to main or confirmed `workflow_dispatch`, SHA-pinned actions, no
+  secrets, concurrency-queued). `scripts/check_workflow_security.py` (rules
+  R1–R5) fails CI on any regression of that contract, and
+  `docs/SECURITY_RUNNER_POLICY.md` records the threat model, host audit and
+  owner hardening items (runner-service account, credential rotation,
+  environment reviewers).
+- The trusted GPU workflow runs preflight → triaged upstream tests → 16 gates
+  → repo tests → small validated receipt → **independent receipt audit**, and
+  uploads the receipt as an artifact (90-day retention).
 - `scripts/upstream_watch.py` daily watch: upstream HEAD (still `5ebea732`) vs
   the reviewed baseline; a new SHA opens a deduplicated review issue.
 - `tracking/UPSTREAM_BASELINE.json` status refreshed; the baseline SHA moves only
@@ -158,6 +184,7 @@ roughly half overrun. Full verdict: [`docs/REVIEW_v0.2.1.md`](docs/REVIEW_v0.2.1
 | Upstream test triage manifest + log | `evidence/upstream-test-classification.json`, `evidence/upstream-kernel-tests-triaged.log` |
 | Stage rows (JSONL) | `evidence/stage-rows.jsonl` |
 | Generated benchmark tables | `docs/BENCHMARKS.md` |
+| Independent audit report (F12, all receipts APPROVED, 111 recomputed comparisons) | `evidence/audit-v0.2.1.json` |
 | Superseded v0.2.0 results | `docs/RESULTS_v0.2.0.md`, `evidence/v0.2.0-archive/` |
 | Full run trees | `results/20261105T230021Z/`, `results/20261105T230036Z/`, `results/20261105T225549Z/` |
 | Checksums | `evidence/SHA256SUMS` |
@@ -165,8 +192,9 @@ roughly half overrun. Full verdict: [`docs/REVIEW_v0.2.1.md`](docs/REVIEW_v0.2.1
 ## 11. Honest-claims statement
 
 - Every performance number in this report comes from a receipt that passed
-  `run.validate_receipt` (gate manifest included) on this GPU; tables are
-  generated, never hand-edited.
+  `run.validate_receipt` (gate manifest included) on this GPU **and** the
+  independent evidence auditor (F12), which recomputed all 111 comparisons
+  from raw stage rows; tables are generated, never hand-edited.
 - Decode-phase speedups at 32k are real but **modest** (block-sparse 3.9×,
   flat 2.1×); below 16k the sparse arms are slower than the corrected dense
   decode baseline, and the tree arm is slower everywhere at these scales.

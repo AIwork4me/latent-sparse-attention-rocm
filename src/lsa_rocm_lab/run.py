@@ -79,11 +79,16 @@ MANDATORY_STAGES=('preflight','reference_correctness','triton_hip_probe','dense_
 def campaign_exit_code(statuses) -> int:
     """Fail-closed campaign verdict - mandatory stages must not fail.
 
-    Every always-on stage that FAILs or TIMEOUTs fails the campaign; the kernel
-    stage additionally fails it whenever an adapter RAN and did not PASS (the
-    v0.2.0 exit code ignored kernel FAIL entirely). lsa_rocm_end_to_end is
-    optional evidence: BLOCKED without an adapter is a legitimate outcome, and a
-    failing adapter surfaces in its own receipt - it never silently greens this.
+    Every always-on stage that is anything other than PASS fails the campaign.
+    The kernel stage fails it whenever an adapter was **configured and
+    attempted** and the outcome is anything other than a verified PASS -
+    including adapter BLOCKED (exit 78), FAIL, TIMEOUT, a crash, a nonzero or
+    missing exit, a malformed/missing receipt, or gates that did not verify
+    (validate_receipt turns those into FAIL before this runs). A kernel adapter
+    that was never configured is the only legitimate non-PASS outcome: BLOCKED
+    with no command, never a speedup claim. The optional E2E stage follows the
+    same rule when its adapter was explicitly configured and attempted (F11);
+    an E2E adapter that was not requested stays a legitimate BLOCKED.
     """
     by={s['stage']:s for s in statuses}
     for name in MANDATORY_STAGES:
@@ -91,12 +96,58 @@ def campaign_exit_code(statuses) -> int:
             return 1
         s=by[name]
         if name!='lsa_rocm_kernel':
-            if s['status']!='PASS':
+            if s.get('status')!='PASS':
                 return 1
         else:
-            if s.get('command') is not None and s['status'] in ('FAIL','TIMEOUT'):
+            attempted=s.get('command') is not None
+            if attempted and s.get('status')!='PASS':
                 return 1
+            if not attempted and s.get('status')!='BLOCKED':
+                return 1  # a PASS record with no adapter run is fabricated evidence
+    e2e=by.get('lsa_rocm_end_to_end')
+    if e2e is not None and e2e.get('command') is not None and e2e.get('status')!='PASS':
+        return 1
     return 0
+
+
+def execute_stage(name,cmd,folder,upstream,sha,run_id,tmax,base_env=None):
+    """Run one stage subprocess and classify it fail-closed (unit-testable).
+
+    PASS requires exit 0 AND, for adapter stages, a receipt that survives
+    validate_receipt. BLOCKED is only the adapter's explicit exit 78 or a stage
+    that was not runnable (cmd None). FAIL covers nonzero exit, process crash,
+    receipt-validation errors and pre-execution failures (e.g. the log file
+    cannot be created). TIMEOUT reaps the whole process group.
+    """
+    status={'stage':name,'command':cmd,'started_utc':datetime.now(timezone.utc).isoformat()}
+    if cmd is None:
+        status['status']='BLOCKED'
+        status['reason']='No verified ROCm LSA adapter, prerequisite correctness, or GPU preflight'
+        return status
+    try:
+        started=time.monotonic()
+        receipt=folder/'receipts'/(name+'.json')
+        env={**(os.environ if base_env is None else base_env),'LSA_UPSTREAM':str(upstream),
+             'LSA_STAGE_RECEIPT':str(receipt),'LSA_UPSTREAM_SHA':sha,'LSA_RUN_ID':run_id}
+        with open(folder/(name+'.log'),'w') as log:
+            proc=subprocess.Popen(cmd,cwd=ROOT,text=True,stdout=log,stderr=subprocess.STDOUT,
+                                  env=env,start_new_session=True)
+            try:
+                proc.wait(timeout=tmax)
+                status['exit_code']=proc.returncode
+                status['status']='PASS' if proc.returncode==0 else ('BLOCKED' if proc.returncode==78 else 'FAIL')
+                if status['status']=='PASS' and name.startswith('lsa_rocm_'):
+                    validate_receipt(receipt,name,sha)
+            except subprocess.TimeoutExpired:
+                os.killpg(proc.pid,signal.SIGTERM)
+                try:proc.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    os.killpg(proc.pid,signal.SIGKILL);proc.wait()
+                status['status']='TIMEOUT'
+        status['elapsed_s']=round(time.monotonic()-started,3)
+    except Exception as e:
+        status['status']='FAIL';status['error']=repr(e)
+    return status
 
 
 def main():
@@ -125,41 +176,20 @@ def main():
     for name in names:
         cmd=stage_command(name,args.quick)
         if name=='lsa_rocm_kernel' and not correctness_ok:cmd=None
-        if name=='lsa_rocm_end_to_end' and not (correctness_ok and len(statuses)>=5 and statuses[4]['status']=='PASS'):cmd=None
-        status={'stage':name,'command':cmd,'started_utc':datetime.now(timezone.utc).isoformat()}
-        if cmd is None or (name!='preflight' and not preflight_ok):
-            status['status']='BLOCKED';status['reason']='No verified ROCm LSA adapter, prerequisite correctness, or GPU preflight'
-        else:
-            try:
-                started=time.monotonic()
-                receipt=folder/'receipts'/(name+'.json')
-                env={**os.environ,'LSA_UPSTREAM':str(upstream),'LSA_STAGE_RECEIPT':str(receipt),'LSA_UPSTREAM_SHA':sha,'LSA_RUN_ID':timestamp}
-                with open(folder/(name+'.log'),'w') as log:
-                    proc=subprocess.Popen(cmd,cwd=ROOT,text=True,stdout=log,stderr=subprocess.STDOUT,env=env,start_new_session=True)
-                    try:
-                        proc.wait(timeout=tmax[name])
-                        status['exit_code']=proc.returncode
-                        status['status']='PASS' if proc.returncode==0 else ('BLOCKED' if proc.returncode==78 else 'FAIL')
-                        if status['status']=='PASS' and name.startswith('lsa_rocm_'):
-                            validate_receipt(receipt,name,sha)
-                    except subprocess.TimeoutExpired:
-                        os.killpg(proc.pid,signal.SIGTERM)
-                        try:proc.wait(timeout=10)
-                        except subprocess.TimeoutExpired:
-                            os.killpg(proc.pid,signal.SIGKILL);proc.wait()
-                        status['status']='TIMEOUT'
-                status['elapsed_s']=round(time.monotonic()-started,3)
-            except Exception as e:
-                status['status']='FAIL';status['error']=repr(e)
+        kernel_pass=any(s['stage']=='lsa_rocm_kernel' and s['status']=='PASS' for s in statuses)
+        if name=='lsa_rocm_end_to_end' and not (correctness_ok and kernel_pass):cmd=None
+        if name!='preflight' and not preflight_ok:cmd=None
+        status=execute_stage(name,cmd,folder,upstream,sha,timestamp,tmax[name])
         if name=='preflight':preflight_ok=status['status']=='PASS'
         if name=='reference_correctness':correctness_ok=status['status']=='PASS'
         statuses.append(status)
         with open(folder/'stages.jsonl','a') as f:f.write(json.dumps(status,ensure_ascii=False)+'\n')
         print(f"[{name}] {status['status']}",flush=True)
+    kernel=next((s for s in statuses if s['stage']=='lsa_rocm_kernel'),None)
     summary={'run_dir':str(folder),'run_id':timestamp,'profile':meta['profile'],
              'repo_head_sha':head,'upstream_sha':sha,
              'statuses':{s['stage']:s['status'] for s in statuses},
-             'claimable_lsa_speedup':statuses[-2]['status']=='PASS' and correctness_ok}
+             'claimable_lsa_speedup':bool(kernel) and kernel.get('status')=='PASS' and correctness_ok}
     (folder/'summary.json').write_text(json.dumps(summary,indent=2))
     (folder/'REPORT.md').write_text('# LSA Radeon Run\n\nRun ID: `'+timestamp+'` · repo HEAD: `'+head+'` · upstream SHA: `'+sha+'`\n\n|Stage|Status|\n|---|---|\n'+''.join(f"|{s['stage']}|{s['status']}|\n" for s in statuses)+'\nNo speedup is published by the starter harness. Real GPU LSA port and baseline-matched timing required.\n')
     with open(folder/'SHA256SUMS','w') as out:

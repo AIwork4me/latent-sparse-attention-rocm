@@ -1,4 +1,6 @@
-from lsa_rocm_lab.run import campaign_exit_code, stage_command
+import pytest
+
+from lsa_rocm_lab.run import MANDATORY_STAGES, campaign_exit_code, stage_command
 
 def test_missing_port_is_blocked_not_faked(monkeypatch):
     monkeypatch.delenv('LSA_ROCM_KERNEL_CMD',raising=False)
@@ -35,10 +37,31 @@ class TestCampaignExitCode:
     def test_kernel_timeout_fails_the_campaign(self):
         assert campaign_exit_code(_statuses(lsa_rocm_kernel={'status': 'TIMEOUT'})) == 1
 
+    @pytest.mark.parametrize('bad_status', [
+        'FAIL', 'TIMEOUT', 'BLOCKED', 'ERROR', 'OOM', 'CRASHED', 'UNVERIFIED', '',
+    ])
+    def test_attempted_kernel_adapter_anything_but_pass_fails(self, bad_status):
+        """F11: configured+attempted adapter, anything other than verified PASS
+        (BLOCKED from exit 78 included) must fail the campaign."""
+        statuses = _statuses(lsa_rocm_kernel={'status': bad_status, 'command': ['x'],
+                                              'exit_code': 78 if bad_status == 'BLOCKED' else 1})
+        assert campaign_exit_code(statuses) == 1
+
     def test_kernel_blocked_without_adapter_is_not_a_failure(self):
         assert campaign_exit_code(
             _statuses(lsa_rocm_kernel={'status': 'BLOCKED', 'command': None})
         ) == 0
+
+    def test_kernel_pass_without_command_is_fabricated_evidence(self):
+        """A PASS record with no adapter run can never exit zero."""
+        assert campaign_exit_code(
+            _statuses(lsa_rocm_kernel={'status': 'PASS', 'command': None})
+        ) == 1
+
+    def test_kernel_record_with_no_status_key_fails_closed(self):
+        statuses = _statuses()
+        del statuses[4]['status']  # a truncated record must not be treated as PASS
+        assert campaign_exit_code(statuses) == 1
 
     def test_preflight_failure_fails_the_campaign(self):
         assert campaign_exit_code(_statuses(preflight={'status': 'FAIL'})) == 1
@@ -49,9 +72,25 @@ class TestCampaignExitCode:
     def test_dense_baseline_failure_fails_the_campaign(self):
         assert campaign_exit_code(_statuses(dense_prefill_baseline={'status': 'FAIL'})) == 1
 
-    def test_missing_stage_record_fails_the_campaign(self):
+    @pytest.mark.parametrize('stage', list(MANDATORY_STAGES[:-1]))
+    def test_any_mandatory_stage_missing_fails(self, stage):
+        kept = [s for s in _statuses() if s['stage'] != stage]
+        assert campaign_exit_code(kept) == 1
+
+    def test_kernel_stage_missing_entirely_fails(self):
         assert campaign_exit_code(_statuses()[:4]) == 1
 
-    def test_e2e_blocked_or_failed_adapter_does_not_fail_mandatory_exit(self):
-        statuses = _statuses(lsa_rocm_end_to_end={'status': 'FAIL', 'command': ['x']})
-        assert campaign_exit_code(statuses) == 0  # E2E is optional evidence, never silently green
+    @pytest.mark.parametrize('bad_status', ['FAIL', 'TIMEOUT', 'BLOCKED', 'ERROR', 'OOM'])
+    def test_attempted_e2e_adapter_failure_fails_the_campaign(self, bad_status):
+        """F11: an explicitly configured and attempted E2E adapter may not
+        quietly green its own failure."""
+        statuses = _statuses(lsa_rocm_end_to_end={'status': bad_status, 'command': ['x']})
+        assert campaign_exit_code(statuses) == 1
+
+    def test_e2e_not_requested_stays_a_legitimate_block(self):
+        assert campaign_exit_code(
+            _statuses(lsa_rocm_end_to_end={'status': 'BLOCKED', 'command': None})
+        ) == 0
+
+    def test_absent_e2e_record_is_not_a_failure(self):
+        assert campaign_exit_code(_statuses()[:5]) == 0
