@@ -8,6 +8,8 @@ Triton ``expand_in_order`` for the expansion. ``gates.py`` holds it set-equal to
 reference walk, so what is timed is provably the same selection.
 """
 
+import os
+
 import torch
 
 from lsa.core.hierarchy import Growth, growth_at
@@ -37,7 +39,35 @@ def tree_select_batched(
     config: PortConfig,
     top_k: int | None = None,
 ):
-    """Select by the beam, expand by the Triton kernel - see ``pipeline.tree_select``."""
+    """Select by the beam, expand by the Triton kernel - see ``pipeline.tree_select``.
+
+    v0.3.0/T4 outcome: the page-batched walk (``_tree_select_pages``, set-equal to
+    the reference by gate C and kept behind ``LSA_TREE_IMPL=batched``) measured
+    0.81-0.87x the per-page walk at 8k/32k prefill - the launch tax it removes is
+    cheap because each launch is tiny, while batch-max candidate widths and the
+    extra copies cost more than the loop saves. The production default stays the
+    proven per-page walk; a true Triton per-level beam (upstream's layout) is the
+    remaining lever, not torch-level batching.
+    """
+    impl = os.environ.get("LSA_TREE_IMPL", "per_page")
+    top_k = config.top_k if top_k is None else top_k
+    if impl == "batched":
+        picked = _tree_select_pages(index_queries, positions, buckets, hierarchy, config)
+        return triton_expansion.expand_in_order(
+            picked.int(), buckets.members, positions.int(), config.window_size, config.sink_size, top_k
+        )
+    return tree_select_per_page(index_queries, positions, buckets, hierarchy, config, top_k)
+
+
+def tree_select_per_page(
+    index_queries: torch.Tensor,
+    positions: torch.Tensor,
+    buckets: Buckets,
+    hierarchy: Hierarchy,
+    config: PortConfig,
+    top_k: int | None = None,
+):
+    """The v0.2.1 per-page python-loop walk - kept as the A/B reference (T4)."""
     top_k = config.top_k if top_k is None else top_k
     reference = to_reference(hierarchy, config)
     queries = index_queries.float()
@@ -63,6 +93,200 @@ def _row_ranges(start: int, stops: torch.Tensor, device) -> tuple[torch.Tensor, 
     span = torch.arange(start, start + most, device=device)
     values = span.expand(len(stops), -1).clone()
     valid = values < stops[:, None]
+    return values.masked_fill(~valid, 0), valid
+
+
+def _growth_replay(page_ids: list[int], config: PortConfig) -> tuple[list[int], list[list[int]], list[list[int]]]:
+    """made/closed/covered per page - ``growth_at``'s replay, one incremental pass.
+
+    The reference replays growing at every page end up to each page's closed
+    bucket count; successive pages only add, so one pass snapshots every page.
+    Pure integer work on the CPU (no GPU launches) - it replaces P calls into
+    ``growth_at`` with the same arithmetic, and gate C holds the results
+    set-equal to the reference walk that used them.
+    """
+    size = config.node_bucket_size
+    first_block = config.node_cluster_block_size
+    page_buckets = config.block_bucket_count
+    top_level = config.top_level
+    covered, made, closed = 0, [0] * top_level, [0] * top_level
+    covered_t, made_t, closed_t = [], [], []
+    max_end = max(page_ids) * page_buckets if page_ids else 0
+    page_set = sorted(set(page_ids))
+    # page 0 closes no buckets - growth_at's replay range is empty for it, so
+    # its snapshot is the zero state; snapshots then append in ascending page
+    # end order (every multiple of page_buckets in range gets an iteration)
+    if page_set and page_set[0] == 0:
+        covered_t.append(covered)
+        made_t.append(list(made))
+        closed_t.append(list(closed))
+    snap_ends = {p * page_buckets for p in page_set if p > 0}
+    for end in range(page_buckets, max_end + 1, page_buckets):
+        blocks = (end - covered) // first_block
+        if blocks < max(1, page_buckets // first_block):
+            if end in snap_ends:
+                covered_t.append(covered); made_t.append(list(made)); closed_t.append(list(closed))
+            continue
+        covered += blocks * first_block
+        made[0] += blocks * first_block // size
+        for level in range(1, top_level):
+            block = config.node_cluster_block_size
+            taken = (made[level - 1] - closed[level - 1]) // block * block
+            if not taken:
+                break
+            closed[level - 1] += taken
+            made[level] += taken // size
+        if end in snap_ends:
+            covered_t.append(covered); made_t.append(list(made)); closed_t.append(list(closed))
+    return covered_t, made_t, closed_t
+
+
+def _tree_select_pages(
+    index_queries: torch.Tensor,
+    positions: torch.Tensor,
+    buckets: Buckets,
+    hierarchy: Hierarchy,
+    config: PortConfig,
+) -> torch.Tensor:
+    """The whole beam as one batched op set per level, chunked over pages.
+
+    The per-page walk's cost was its python page loop (T2: 19,940 launches/iter
+    at 32k); here each level runs once over all pages, in chunks of
+    ``PAGE_CHUNK`` so the gathered-centroid einsum intermediate stays bounded
+    (the full [P, R, C, d] gather is multiple GiB at 32k and thrashes UMA).
+    The per-row math - ascending candidates, stable descending argsort,
+    first-occurrence dedup, lower-row ties - is the per-page walk's exactly;
+    gate C holds the batched result set-equal to the reference walk.
+    """
+    device = index_queries.device
+    queries = index_queries.float()
+    pages_cpu = (positions // config.cluster_block_size).cpu()
+    sort_idx = torch.argsort(pages_cpu, stable=True)
+    sorted_pages = pages_cpu[sort_idx]
+    unique_pages, counts = torch.unique_consecutive(sorted_pages, return_counts=True)
+    P, R = len(unique_pages), int(counts.max())
+    counts_d = counts.to(device)
+    starts = torch.cat([torch.zeros(1, dtype=torch.int64), torch.cumsum(counts, 0)[:-1]]).to(device)
+    row_index = starts[:, None] + torch.arange(R, device=device)[None, :]
+    row_valid = torch.arange(R, device=device)[None, :] < counts_d[:, None]
+    row_index = row_index.clamp_max(len(pages_cpu) - 1)
+    page_rows = sort_idx.to(device)[row_index]  # [P, R] original row ids
+    q = queries[page_rows]
+    pos = positions[page_rows]
+    visible = (pos // config.cluster_block_size * config.block_bucket_count).clamp_max(buckets.rows)
+
+    covered_list, made_list, closed_list = _growth_replay(unique_pages.tolist(), config)
+    n_levels = len(made_list[0]) if made_list else 0
+    made_t = torch.tensor(made_list, device=device)
+    closed_t = torch.tensor(closed_list, device=device)
+    covered = torch.tensor(covered_list, device=device)
+    levels_count = (made_t > 0).sum(1)
+    beam_width = config.beam_width
+
+    carried = torch.zeros(P, R, 0, dtype=torch.int64, device=device)
+    carried_valid = torch.zeros(P, R, 0, dtype=torch.bool, device=device)
+
+    def _chunked_level_step(level, made_l, first_open, active):
+        """One beam level over all pages in chunks - the walk's per-level math."""
+        nonlocal carried, carried_valid
+        fresh_w = max(int((made_l - first_open).max().item()) if P else 0, 0)
+        carried_w = carried.shape[2]
+        if carried_w + fresh_w <= 0:
+            return
+        keep_cols = min(beam_width, carried_w + fresh_w)
+        children = hierarchy.levels[level - 1].children
+        new_carried = torch.empty(P, R, keep_cols * config.node_bucket_size,
+                                  dtype=torch.int64, device=device)
+        new_valid = torch.empty(P, R, keep_cols * config.node_bucket_size,
+                                dtype=torch.bool, device=device)
+        for c0 in range(0, P, PAGE_CHUNK):
+            c1 = min(c0 + PAGE_CHUNK, P)
+            acts = active[c0:c1, None, None]
+            rows_ok = row_valid[c0:c1, :, None]
+            if fresh_w > 0:
+                fresh = first_open[c0:c1, None, None] \
+                    + torch.arange(fresh_w, device=device)[None, None, :].expand(c1 - c0, R, fresh_w)
+                fresh_valid = (torch.arange(fresh_w, device=device)[None, None, :]
+                               < (made_l - first_open)[c0:c1, None, None]).expand(c1 - c0, R, fresh_w)
+                cand = torch.cat([carried[c0:c1], fresh], dim=2)
+                valid = torch.cat([carried_valid[c0:c1], fresh_valid & acts & rows_ok], dim=2)
+            else:
+                cand = carried[c0:c1].clone()
+                valid = carried_valid[c0:c1].clone()
+            cand, perm = torch.sort(cand, dim=2)
+            valid = torch.gather(valid, 2, perm)
+            scores = torch.einsum("prd,prnd->prn", q[c0:c1],
+                                  hierarchy.levels[level - 1].centroids[cand])
+            scores = _dedup_scores(cand.reshape(-1, cand.shape[2]),
+                                   scores.reshape(-1, cand.shape[2]),
+                                   valid.reshape(-1, cand.shape[2])).reshape(c1 - c0, R, -1)
+            top_idx = scores.reshape(-1, scores.shape[2]).argsort(
+                dim=1, descending=True, stable=True)[:, :keep_cols]
+            picked = cand.reshape(-1, cand.shape[2]).gather(1, top_idx).reshape(c1 - c0, R, -1)
+            new_carried[c0:c1] = children[picked.reshape(-1)].reshape(c1 - c0, R, -1)
+            kept_ok = (picked >= 0).reshape(c1 - c0, R, keep_cols) \
+                & active[c0:c1, None, None] & row_valid[c0:c1, :, None]
+            # each kept node contributes node_bucket_size children columns
+            new_valid[c0:c1] = kept_ok.repeat_interleave(config.node_bucket_size, dim=2)
+        # pages not walking this level keep their carried (they enter at a lower
+        # level or never enter; their carried is empty/invalid either way, so
+        # the where matters only when widths happen to coincide)
+        if carried.shape[2] == new_carried.shape[2] and bool((~active).any()):
+            carried = torch.where(active[:, None, None], new_carried, carried)
+            carried_valid = torch.where(active[:, None, None], new_valid, carried_valid)
+        else:
+            carried, carried_valid = new_carried, new_valid
+
+    for level in range(n_levels, 0, -1):
+        active = levels_count >= level
+        if not bool(active.any()):
+            continue
+        entering = levels_count == level
+        first_open = torch.where(entering, torch.zeros_like(closed_t[:, level - 1]),
+                                 closed_t[:, level - 1])
+        _chunked_level_step(level, made_t[:, level - 1], first_open, active)
+
+    # Level 0 for every page: carried children plus the uncovered visible buckets.
+    # No pad to top_p - padding tripled the sort/dedup width (top_p 1024 vs the
+    # natural ~320 at 32k); the gather takes min(width, top_p) columns instead.
+    fresh, fresh_valid = _row_ranges_batched(covered, visible)
+    cand = torch.cat([carried, fresh], dim=2)
+    valid = torch.cat([carried_valid, fresh_valid & row_valid[:, :, None]], dim=2)
+    cand, perm = torch.sort(cand, dim=2)
+    valid = torch.gather(valid, 2, perm)
+    width0 = min(cand.shape[2], config.top_p)
+    picked_final = torch.full((P, R, config.top_p), -1, dtype=torch.int64, device=device)
+    centroids = buckets.centroids_f32
+    for c0 in range(0, P, PAGE_CHUNK):
+        c1 = min(c0 + PAGE_CHUNK, P)
+        chunk_cand, chunk_valid = cand[c0:c1], valid[c0:c1]
+        scores = torch.einsum("prd,prnd->prn", q[c0:c1], centroids[chunk_cand])
+        scores = _dedup_scores(chunk_cand.reshape(-1, chunk_cand.shape[2]),
+                               scores.reshape(-1, scores.shape[2]),
+                               chunk_valid.reshape(-1, chunk_valid.shape[2])).reshape(c1 - c0, R, -1)
+        order0 = scores.reshape(-1, scores.shape[2]).argsort(
+            dim=1, descending=True, stable=True)[:, :width0]
+        chosen = chunk_cand.reshape(-1, chunk_cand.shape[2]).gather(1, order0).reshape(c1 - c0, R, -1)
+        # an invalid column (pad/covered/out-of-range) is the walk's "not
+        # picked": -1, never its placeholder id (bucket 0 would expand!)
+        chosen_ok = chunk_valid.reshape(-1, chunk_valid.shape[2]).gather(1, order0).reshape(c1 - c0, R, -1)
+        picked_final[c0:c1, :, :width0] = torch.where(chosen_ok, chosen, torch.full_like(chosen, -1))
+    picks = torch.full((queries.shape[0], config.top_p), -1, dtype=torch.int64, device=device)
+    picked_rows = page_rows.reshape(-1)
+    picked_ok = row_valid.reshape(-1)
+    picks[picked_rows[picked_ok]] = picked_final.reshape(-1, config.top_p)[picked_ok]
+    return picks
+
+
+PAGE_CHUNK = 4
+
+
+def _row_ranges_batched(starts: torch.Tensor, stops: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    """[P, R] per-row ranges [start_p, stop_pr) padded to the widest - ``_row_ranges`` batched."""
+    most = max(int((stops - starts[:, None]).max()), 0)
+    span = torch.arange(most, device=starts.device)
+    values = (starts[:, None, None] + span[None, None, :]).expand(stops.shape[0], stops.shape[1], most)
+    valid = span[None, None, :] < (stops[:, :, None] - starts[:, None, None])
     return values.masked_fill(~valid, 0), valid
 
 

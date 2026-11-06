@@ -1,6 +1,7 @@
-# v0.3.0 optimization — measured bottleneck attribution (T2)
+# v0.3.0 optimization — measured bottleneck attribution (T2) and outcomes (T3/T4)
 
-Generated from `results/campaigns/campaign-20261106T231500Z/profile/`
+Campaign `campaign-20261106T231500Z`. T2 profiling from
+`results/campaigns/campaign-20261106T231500Z/profile/`
 (`profile_stages.py --mode cold|warm`, 32k ctx, bf16, seed 20261105, gfx1151,
 ROCm 10.1.0 / torch 2.14.0+rocm10.1.0 / Triton 3.8.0+git669b31ac).
 GPU state during the pass: 49–52 °C edge, sclk level 1 (1416–1460 MHz), no
@@ -112,3 +113,68 @@ effect on receipts.
   launch — its cost is the gather pattern, not launch or python overhead.
 - Decode's sparse read (72 µs GPU) is latency-bound at 8 programs; batching
   (multi-query decode) changes occupancy, not the algorithm.
+
+## f. T3 outcome — tiled sparse read (banked, audited)
+
+`read_kernel_tiled.py`: one program reads TM query rows of one head (TM=4/CN=32
+prefill, TM=1/CN64 decode via `sparse_read_auto`), same per-row numeric path as
+v1 (fp32 scores/softmax, -1 padding, GQA, per-occurrence duplicates); `tl.dot`
+deliberately not used (per-row expanded lists give no shared K matrix for the
+M-axis — a forced tl.dot would change semantics).
+
+A/B on identical production inputs, every config correctness-gated before its
+timing counts (`scripts/ab_read_kernel.py`, JSON in the campaign dir):
+
+| context | phase | v1 p50 | best v2 | config | speedup |
+|---:|---|---:|---:|---|---:|
+| 8192 | prefill | 60.5 ms | 48.9 ms | TM4/CN32 | **1.24×** |
+| 16384 | prefill | 133.4 ms | 113.0 ms | TM4/CN32 | **1.18×** |
+| 32768 | prefill | 286.8 ms | 249.1 ms | TM2/CN64 (TM4/CN32 1.14×) | **1.15×** |
+| 8192–32768 | decode | 0.14 ms | parity | TM1/CN64 | ~1.0× |
+
+Step-level (fresh 17/17-gate receipts at HEAD 4988672, auditor-APPROVED,
+72 comparisons recomputed): 32k bf16 prefill select+read 389.1 ms → **345.7 ms
+(0.19× → 0.207× vs dense)**; decode unchanged as measured (TM1 dispatch).
+Gate H added: production path == v1 kernel across fp32/fp16/bf16 ×
+prefill/decode launches + the zero-length contract (v1's 0/0 NaN → defined
+zero output). 16→17 gates; v0.2.1's 16-gate receipts stay valid for their time.
+
+Multi-seed re-check on the new kernel (9 fresh receipts, auditor-APPROVED):
+32k decode flat band 1.67–2.00× (med 1.89×), block-sparse 3.93–4.19× (med
+3.99×), tree 0.77–0.95× — consistent with the v1-kernel T1 study (1.69–2.79
+med 1.74; 4.14–4.38; 0.80–0.92): the flat decode advantage is real but
+seed-sensitive; block-sparse is robust.
+
+## g. T4 outcome — tree beam kernelization (negative result, documented)
+
+Hypothesis from T2: 19,940 launches/iter made the python page loop the cost.
+Experiment: page-batched walk (`_tree_select_pages` — one batched op set per
+level, chunked to bound the gathered-centroid einsum; growth tables replayed
+on CPU; set-equal to the reference walk, gate C PASS, and to the per-page walk
+by test). Result at identical inputs:
+
+| context | phase | per-page | page-batched | ratio |
+|---:|---|---:|---:|---:|
+| 8192 | prefill select | 48.9 ms | 55.9 ms | 0.87× |
+| 32768 | prefill select | 294.6 ms | 363.2 ms | 0.81× |
+| 8192 | decode select | 2.15 ms | 2.31 ms | 0.93× |
+| 32768 | decode select | 3.28 ms | 2.88 ms | 1.14× |
+
+**The launch tax is not the dominant cost** — each launch is tiny; the beam's
+GPU work (gathered-centroid scores, per-row sorts, dedup) is. Torch-level
+batching forces batch-max candidate widths and extra copies that cost more
+than the loop saves. Production keeps the per-page walk (default;
+`LSA_TREE_IMPL=batched` selects the experimental path, held set-equal by
+test). The remaining lever is a true per-level Triton beam (upstream's
+`beam.py` layout: fp8 node centroids, packed keys, children tables) — a
+layout-adapting port, estimated multi-day, deferred with this measurement as
+its justification.
+
+## h. What a v0.3.1+ attacker does next, in measured order
+
+1. Prefill `flat_select`'s sort+copy chain (~48% of the 95 ms select) — int32
+   keys or a fused pack→sort→expand Triton pass.
+2. The Triton beam port above.
+3. Decode select fusion (42 launches / ~139 µs GPU for 0.27 ms wall).
+4. Sparse-read shared-block dedup across cluster rows (needs a grouping pass;
+   the ~10× traffic cut case, research-grade).

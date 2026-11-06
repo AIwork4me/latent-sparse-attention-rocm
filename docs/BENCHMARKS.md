@@ -3,141 +3,116 @@
 
 ## bf16 matrix — AMD Radeon 8060S Graphics
 
-- receipt: `evidence/kernel-receipt-overnight-bf16.json` · run id `20261105T230036Z` · status PASS
-- gates: 16/16 PASS (manifest-validated) · correctness_pass: True
-- repo HEAD: `82c891e2ea12700205fcdb56df343b9b3b6cb1c8` · upstream: `5ebea732d639`
+- receipt: `evidence/receipts-v0.3.0/kernel-receipt-v0.3.0-bf16.json` · run id `20261106T155016Z-adapter` · status PASS
+- gates: 17/17 PASS (manifest-validated) · correctness_pass: True
+- repo HEAD: `49886723fb5b9c0b15d9560aadbf67062559c681` · upstream: `5ebea732d639`
 - device: AMD Radeon 8060S Graphics (gfx1151) · torch 2.14.0+rocm10.1.0
 - dtype bf16 · seed 20261105 · warmup 5 / reps 20
-- command: `/home/amd/Desktop/lsa-rocm-eval-starter/src/lsa_rocm_lab/kernel_adapter.py`
+- command: `/home/amd/Desktop/lsa-rocm-eval-starter/src/lsa_rocm_lab/kernel_adapter.py --dtype bf16`
 
 
 ### Decode — select+read p50 ms (speedup vs dense)
 
 | ctx | dense SDPA | block-sparse | D-LSA Flat | D-LSA Tree |
 |---:|---:|---:|---:|---:|
-| 512 | 0.045 | 0.251 (0.18×) | 0.247 (0.18×) | — |
-| 1024 | 0.074 | 0.279 (0.27×) | 0.279 (0.27×) | — |
-| 2048 | 0.124 | 0.244 (0.51×) | 0.254 (0.49×) | — |
-| 4096 | 0.196 | 0.311 (0.63×) | 0.302 (0.65×) | 0.984 (0.20×) |
-| 8192 | 0.389 | 0.294 (1.32×) | 0.366 (1.06×) | 1.121 (0.35×) |
-| 16384 | 0.677 | 0.303 (2.24×) | 0.426 (1.59×) | 1.350 (0.50×) |
-| 32768 | 1.270 | 0.325 (3.91×) | 0.530 (2.40×) | 1.396 (0.91×) |
+| 512 | 0.040 | 0.248 (0.16×) | 0.256 (0.16×) | — |
+| 1024 | 0.062 | 0.239 (0.26×) | 0.248 (0.25×) | — |
+| 2048 | 0.113 | 0.336 (0.33×) | 0.334 (0.34×) | — |
+| 4096 | 0.211 | 0.357 (0.59×) | 0.351 (0.60×) | 1.396 (0.15×) |
+| 8192 | 0.334 | 0.363 (0.92×) | 0.370 (0.90×) | 1.364 (0.24×) |
+| 16384 | 0.646 | 0.355 (1.82×) | 0.642 (1.01×) | 1.634 (0.40×) |
+| 32768 | 1.199 | 0.354 (3.38×) | 0.744 (1.61×) | 1.638 (0.73×) |
 
 
 ### Prefill — select+read p50 ms (speedup vs dense)
 
 | ctx | dense SDPA | block-sparse | D-LSA Flat | D-LSA Tree |
 |---:|---:|---:|---:|---:|
-| 512 | 0.065 | 3.501 (0.02×) | 3.570 (0.02×) | — |
-| 1024 | 0.104 | 6.504 (0.02×) | 6.415 (0.02×) | — |
-| 2048 | 0.346 | 13.541 (0.03×) | 13.591 (0.03×) | — |
-| 4096 | 1.238 | 29.642 (0.04×) | 29.655 (0.04×) | 44.353 (0.03×) |
-| 8192 | 4.612 | 69.164 (0.07×) | 69.567 (0.07×) | 104.352 (0.04×) |
-| 16384 | 18.176 | 163.033 (0.11×) | 162.882 (0.11×) | 235.181 (0.08×) |
-| 32768 | 74.768 | 395.943 (0.19×) | 389.085 (0.19×) | 525.096 (0.14×) |
+| 512 | 0.059 | 2.754 (0.02×) | 2.582 (0.02×) | — |
+| 1024 | 0.107 | 5.352 (0.02×) | 5.748 (0.02×) | — |
+| 2048 | 0.334 | 10.152 (0.03×) | 10.816 (0.03×) | — |
+| 4096 | 1.216 | 22.880 (0.05×) | 22.840 (0.05×) | 38.516 (0.03×) |
+| 8192 | 4.592 | 55.726 (0.08×) | 56.503 (0.08×) | 89.989 (0.05×) |
+| 16384 | 18.076 | 135.875 (0.13×) | 138.136 (0.13×) | 210.016 (0.09×) |
+| 32768 | 71.414 | 340.649 (0.21×) | 345.706 (0.21×) | 474.070 (0.15×) |
 
 
 ### Stage breakdown @ 32768 (p50 ms)
 
 | method | phase | index_build | hierarchy_build | select | sparse_read | select+read |
 |---|---|---:|---:|---:|---:|---:|
-| Block-sparse | prefill | 0.489 | — | 95.803 | 294.009 | 395.943 |
-| Block-sparse | decode | 0.281 | — | 0.259 | 0.101 | 0.325 |
-| D-LSA Flat | prefill | 6.948 | — | 96.295 | 289.055 | 389.085 |
-| D-LSA Flat | decode | 6.964 | — | 0.554 | 0.149 | 0.530 |
-| D-LSA Tree | prefill | 6.921 | 12.956 | 290.080 | 233.993 | 525.096 |
-| D-LSA Tree | decode | 6.920 | 13.147 | 1.308 | 0.092 | 1.396 |
+| Block-sparse | prefill | 0.571 | — | 95.436 | 242.231 | 340.649 |
+| Block-sparse | decode | 0.333 | — | 0.260 | 0.110 | 0.354 |
+| D-LSA Flat | prefill | 7.049 | — | 96.600 | 248.373 | 345.706 |
+| D-LSA Flat | decode | 7.080 | — | 0.539 | 0.213 | 0.744 |
+| D-LSA Tree | prefill | 7.018 | 12.782 | 287.345 | 185.298 | 474.070 |
+| D-LSA Tree | decode | 7.050 | 12.905 | 1.550 | 0.096 | 1.638 |
 
 
 ## fp16 matrix — AMD Radeon 8060S Graphics
 
-- receipt: `evidence/kernel-receipt-overnight-fp16.json` · run id `20261105T225806Z-adapter` · status PASS
-- gates: 16/16 PASS (manifest-validated) · correctness_pass: True
-- repo HEAD: `82c891e2ea12700205fcdb56df343b9b3b6cb1c8` · upstream: `5ebea732d639`
+- receipt: `evidence/receipts-v0.3.0/kernel-receipt-v0.3.0-fp16.json` · run id `20261106T155217Z-adapter` · status PASS
+- gates: 17/17 PASS (manifest-validated) · correctness_pass: True
+- repo HEAD: `49886723fb5b9c0b15d9560aadbf67062559c681` · upstream: `5ebea732d639`
 - device: AMD Radeon 8060S Graphics (gfx1151) · torch 2.14.0+rocm10.1.0
 - dtype fp16 · seed 20261105 · warmup 5 / reps 20
-- command: `/home/amd/Desktop/lsa-rocm-eval-starter/src/lsa_rocm_lab/kernel_adapter.py`
+- command: `/home/amd/Desktop/lsa-rocm-eval-starter/src/lsa_rocm_lab/kernel_adapter.py --dtype fp16`
 
 
 ### Decode — select+read p50 ms (speedup vs dense)
 
 | ctx | dense SDPA | block-sparse | D-LSA Flat | D-LSA Tree |
 |---:|---:|---:|---:|---:|
-| 512 | 0.046 | 0.269 (0.17×) | 0.278 (0.17×) | — |
-| 1024 | 0.067 | 0.266 (0.25×) | 0.295 (0.23×) | — |
-| 2048 | 0.117 | 0.290 (0.40×) | 0.315 (0.37×) | — |
-| 4096 | 0.184 | 0.265 (0.69×) | 0.285 (0.64×) | 1.117 (0.16×) |
-| 8192 | 0.409 | 0.307 (1.33×) | 0.345 (1.18×) | 1.079 (0.38×) |
-| 16384 | 0.654 | 0.308 (2.12×) | 0.409 (1.60×) | 1.337 (0.49×) |
-| 32768 | 1.229 | 0.297 (4.14×) | 0.660 (1.86×) | 1.322 (0.93×) |
+| 512 | 0.044 | 0.264 (0.16×) | 0.273 (0.16×) | — |
+| 1024 | 0.060 | 0.283 (0.21×) | 0.279 (0.21×) | — |
+| 2048 | 0.113 | 0.338 (0.34×) | 0.368 (0.31×) | — |
+| 4096 | 0.199 | 0.339 (0.59×) | 0.338 (0.59×) | 1.370 (0.15×) |
+| 8192 | 0.327 | 0.348 (0.94×) | 0.485 (0.67×) | 1.338 (0.24×) |
+| 16384 | 0.671 | 0.333 (2.01×) | 0.669 (1.00×) | 1.595 (0.42×) |
+| 32768 | 1.166 | 0.353 (3.30×) | 0.710 (1.64×) | 1.512 (0.77×) |
 
 
 ### Prefill — select+read p50 ms (speedup vs dense)
 
 | ctx | dense SDPA | block-sparse | D-LSA Flat | D-LSA Tree |
 |---:|---:|---:|---:|---:|
-| 512 | 0.055 | 3.381 (0.02×) | 3.124 (0.02×) | — |
-| 1024 | 0.099 | 6.100 (0.02×) | 6.142 (0.02×) | — |
-| 2048 | 0.324 | 12.514 (0.03×) | 13.398 (0.02×) | — |
-| 4096 | 1.156 | 27.417 (0.04×) | 27.496 (0.04×) | 42.181 (0.03×) |
-| 8192 | 4.088 | 65.148 (0.06×) | 65.853 (0.06×) | 98.917 (0.04×) |
-| 16384 | 17.040 | 157.558 (0.11×) | 157.260 (0.11×) | 226.778 (0.08×) |
-| 32768 | 67.340 | 388.316 (0.17×) | 401.695 (0.17×) | 505.663 (0.13×) |
+| 512 | 0.053 | 2.496 (0.02×) | 2.099 (0.03×) | — |
+| 1024 | 0.098 | 4.247 (0.02×) | 4.574 (0.02×) | — |
+| 2048 | 0.308 | 8.776 (0.04×) | 8.611 (0.04×) | — |
+| 4096 | 1.138 | 19.737 (0.06×) | 19.943 (0.06×) | 34.924 (0.03×) |
+| 8192 | 4.380 | 52.854 (0.08×) | 53.877 (0.08×) | 83.672 (0.05×) |
+| 16384 | 16.881 | 134.371 (0.13×) | 136.374 (0.12×) | 201.680 (0.08×) |
+| 32768 | 66.835 | 342.011 (0.20×) | 346.743 (0.19×) | 454.588 (0.15×) |
 
 
 ### Stage breakdown @ 32768 (p50 ms)
 
 | method | phase | index_build | hierarchy_build | select | sparse_read | select+read |
 |---|---|---:|---:|---:|---:|---:|
-| Block-sparse | prefill | 0.561 | — | 96.278 | 288.124 | 388.316 |
-| Block-sparse | decode | 0.292 | — | 0.272 | 0.093 | 0.297 |
-| D-LSA Flat | prefill | 6.962 | — | 96.633 | 304.180 | 401.695 |
-| D-LSA Flat | decode | 7.011 | — | 0.542 | 0.139 | 0.660 |
-| D-LSA Tree | prefill | 6.975 | 14.357 | 287.603 | 215.800 | 505.663 |
-| D-LSA Tree | decode | 6.981 | 14.221 | 1.243 | 0.079 | 1.322 |
-
-
-## Independent repetitions (strategic shapes)
-
-# Independent matched benchmark repetitions
-
-- repetitions: 3 independent adapter processes, same seed/shape/dtype
-- upstream SHA: `5ebea732d639576d2a7579b0de40e6252f9001f5` · repo HEAD: `82c891e2ea12700205fcdb56df343b9b3b6cb1c8`
-- device: AMD Radeon 8060S Graphics (gfx1151) · torch 2.14.0+rocm10.1.0
-- gates: 16/16 PASS in every repetition
-- run ids: rep1-20261105T225807Z, rep2-20261105T225807Z, rep3-20261105T225807Z
-
-| shape (ctx/dtype/phase/method) | per-run speedups | median | min-max | candidate p50 median (ms) |
-|---|---|---:|---|---:|
-| 8192/bf16/decode/block_sparse | 1.10x / 1.07x / 1.01x | **1.07x** | 1.01-1.10 | 0.299 |
-| 8192/bf16/decode/lsa_flat | 1.02x / 0.96x / 1.04x | **1.02x** | 0.96-1.04 | 0.311 |
-| 8192/bf16/decode/lsa_tree | 0.29x / 0.27x / 0.29x | **0.29x** | 0.27-0.29 | 1.100 |
-| 16384/bf16/decode/block_sparse | 1.81x / 1.68x / 1.99x | **1.81x** | 1.68-1.99 | 0.331 |
-| 16384/bf16/decode/lsa_flat | 0.89x / 0.84x / 0.89x | **0.89x** | 0.84-0.89 | 0.679 |
-| 16384/bf16/decode/lsa_tree | 0.45x / 0.47x / 0.46x | **0.46x** | 0.45-0.47 | 1.317 |
-| 32768/bf16/decode/block_sparse | 3.93x / 3.57x / 4.17x | **3.93x** | 3.57-4.17 | 0.300 |
-| 32768/bf16/decode/lsa_flat | 2.41x / 1.52x / 2.11x | **2.11x** | 1.52-2.41 | 0.584 |
-| 32768/bf16/decode/lsa_tree | 0.89x / 0.74x / 0.92x | **0.89x** | 0.74-0.92 | 1.336 |
-
-Per-repetition receipts: `receipt-1.json`, `receipt-2.json`, `receipt-3.json`
+| Block-sparse | prefill | 0.511 | — | 95.840 | 242.475 | 342.011 |
+| Block-sparse | decode | 0.286 | — | 0.240 | 0.098 | 0.353 |
+| D-LSA Flat | prefill | 7.031 | — | 96.114 | 247.441 | 346.743 |
+| D-LSA Flat | decode | 7.040 | — | 0.530 | 0.170 | 0.710 |
+| D-LSA Tree | prefill | 6.998 | 13.851 | 286.228 | 163.369 | 454.588 |
+| D-LSA Tree | decode | 7.013 | 14.402 | 1.385 | 0.086 | 1.512 |
 
 
 ## Multi-seed variance bands (v0.3.0/T1) — 9 receipts
 
 - seeds: 424243, 777001, 20261105 · min seeds 3 · min runs/seed 3
-- runs: rep1-20261106T151843Z, rep2-20261106T151843Z, rep3-20261106T151843Z, rep4-20261106T151843Z, rep5-20261106T151843Z, rep6-20261106T151843Z, rep7-20261106T151843Z, rep8-20261106T151843Z, rep9-20261106T151843Z
+- runs: rep1-20261106T155417Z, rep2-20261106T155417Z, rep3-20261106T155417Z, rep4-20261106T155417Z, rep5-20261106T155417Z, rep6-20261106T155417Z, rep7-20261106T155417Z, rep8-20261106T155417Z, rep9-20261106T155417Z
 - coverage status: **OK**
 
 A single-seed speedup is NOT a headline claim: cite the cross-seed band (per-seed median speedups, min–max) plus the pooled median.
 
 | context/dtype/phase/method | per-seed medians | cross-seed band | pooled |
 |---|---|---|---|
-| 8192/bf16/decode/block_sparse | s424243=1.10, s777001=1.18, s20261105=1.00 | 1.00–1.18 (med 1.10) | 1.12 |
-| 8192/bf16/decode/lsa_flat | s424243=1.04, s777001=1.14, s20261105=0.96 | 0.96–1.14 (med 1.04) | 1.03 |
-| 8192/bf16/decode/lsa_tree | s424243=0.28, s777001=0.31, s20261105=0.30 | 0.28–0.31 (med 0.30) | 0.30 |
-| 16384/bf16/decode/block_sparse | s424243=1.94, s777001=2.05, s20261105=2.08 | 1.94–2.08 (med 2.05) | 2.04 |
-| 16384/bf16/decode/lsa_flat | s424243=1.08, s777001=1.27, s20261105=1.78 | 1.08–1.78 (med 1.27) | 1.27 |
-| 16384/bf16/decode/lsa_tree | s424243=0.46, s777001=0.48, s20261105=0.48 | 0.46–0.48 (med 0.48) | 0.48 |
-| 32768/bf16/decode/block_sparse | s424243=4.14, s777001=4.28, s20261105=4.38 | 4.14–4.38 (med 4.28) | 4.27 |
-| 32768/bf16/decode/lsa_flat | s424243=1.69, s777001=1.74, s20261105=2.79 | 1.69–2.79 (med 1.74) | 1.85 |
-| 32768/bf16/decode/lsa_tree | s424243=0.92, s777001=0.90, s20261105=0.80 | 0.80–0.92 (med 0.90) | 0.87 |
+| 8192/bf16/decode/block_sparse | s424243=1.05, s777001=1.08, s20261105=1.06 | 1.05–1.08 (med 1.06) | 1.06 |
+| 8192/bf16/decode/lsa_flat | s424243=1.07, s777001=1.04, s20261105=1.06 | 1.04–1.07 (med 1.06) | 1.06 |
+| 8192/bf16/decode/lsa_tree | s424243=0.30, s777001=0.29, s20261105=0.29 | 0.29–0.30 (med 0.29) | 0.29 |
+| 16384/bf16/decode/block_sparse | s424243=1.96, s777001=1.92, s20261105=1.94 | 1.92–1.96 (med 1.94) | 1.94 |
+| 16384/bf16/decode/lsa_flat | s424243=0.84, s777001=0.94, s20261105=1.33 | 0.84–1.33 (med 0.94) | 0.87 |
+| 16384/bf16/decode/lsa_tree | s424243=0.46, s777001=0.47, s20261105=0.47 | 0.46–0.47 (med 0.47) | 0.47 |
+| 32768/bf16/decode/block_sparse | s424243=3.99, s777001=3.93, s20261105=4.19 | 3.93–4.19 (med 3.99) | 3.99 |
+| 32768/bf16/decode/lsa_flat | s424243=1.67, s777001=2.00, s20261105=1.89 | 1.67–2.00 (med 1.89) | 1.81 |
+| 32768/bf16/decode/lsa_tree | s424243=0.88, s777001=0.77, s20261105=0.95 | 0.77–0.95 (med 0.88) | 0.88 |
