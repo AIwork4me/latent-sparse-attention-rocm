@@ -59,3 +59,28 @@ Date: 2026-11-07 · Branch head: `7907dae` (v0.3.0-kernel-optimization, PR #5, D
 ## 6. Reproducibility
 
 Every R1 claim is re-checkable: `scripts/r1_verify_receipts.py` (committed), `sha256sum -c evidence/SHA256SUMS`, the gate commands in the release notes, CI run links above, and the adversarial-review artifacts (bypass fixtures reproducible from the findings text; guard tests in `tests/test_workflow_security.py`).
+
+---
+
+## 7. Addendum (2026-11-07 ~14:30 UTC): OWNER APPROVED ITEMS 1–5 — EXECUTED RELEASE CHAIN
+
+Owner approval "1-5 事项全部批准" received; every step below executed and verified. No history rewrites, no force pushes; both merges are merge commits.
+
+| Step | Result |
+|---|---|
+| A1 env reviewers | `gpu-regression` now has `required_reviewers` = AIwork4me (verified via API) |
+| A2 SHA pinning | `sha_pinning_required=true` (verified) |
+| GPU workflow | disabled during main pushes (no queued self-hosted jobs); **re-enabled after A1**; queue verified empty |
+| PR #1 Option A | hygiene `c12e8b5` (version 0.2.1, SHA256SUMS paths, bench docstring; local 117/16/0 + guard PASS; GitHub CI ×2 success) |
+| PR #1 merge | ready-for-review + **merge commit `7b0b06f`**; post-merge at merge tree `5a83c9e7…`: CPU CI 117/16/0, **16/16 gates on gfx1151**, 133 GPU tests, evidence 24/24 |
+| **v0.2.1 tag+Release** | tag `v0.2.1` → `7b0b06f`; Release **published** 14:17:36Z ([releases/tag/v0.2.1](https://github.com/AIwork4me/latent-sparse-attention-rocm/releases/tag/v0.2.1)) |
+| PR #5 retarget | base → main (REST); PR#1-exclusive files gone from diff; key commits retained |
+| PR #5 conflict resolution | `evidence/SHA256SUMS` (both sides fixed the same 2 path typos; branch's 71-line manifest is a verified superset of main's 24) → merge commit `99902d7` on branch; local 141/46/0 + 71/71; CI ×2 success |
+| PR #5 merge | ready-for-review + **merge commit `958d948c2e43203cdef28cd4afa1e916c5c9a718`** (tree `da63d367…`) |
+| **§7 hard gate @ `958d948`** | CPU CI **141/46/0** · gates **17/17 default AND 17/17 batched** · gfx1151 pytest **192** · evidence **71/71** · receipt recompute **153/153 ALL VERIFIED** · guard PASS · main CI success. Identity: python 3.12.3, torch 2.14.0+rocm10.1.0 (hip 7.16.26385), Radeon 8060S, triton 3.8.0, upstream `5ebea732` |
+| A8 version gate | CHANGELOG [0.3.0]/[0.3.1] verified present; bump commit **`0f1abeb`** on main (0.2.1→0.3.1); CI success |
+| **v0.3.1 tag+Release** | tag `v0.3.1` → `0f1abeb`; Release **published** 14:26:43Z, Latest ([releases/tag/v0.3.1](https://github.com/AIwork4me/latent-sparse-attention-rocm/releases/tag/v0.3.1)) |
+| A6 | repo is **user-account owned** → runner groups (org feature) not applicable; applicable controls all in place (A1, A2, hardened guard, guard-from-pinned-commit). One UI-only toggle left for owner: Settings → Actions → require approval for all external contributors' workflows |
+| A3 migration + cred rotation | **NOT executed — sudo requires the owner's password at the console.** Paste-ready block: R1_RUNNER_SECURITY §2.1 (user lsa-runner, /opt install, hardened systemd unit, venv copy, one-line workflow path PR). Rotate the gh credential ONLY after migration (§2.3 rollback stands) |
+
+Final main state: `0f1abeb` (v0.3.1) · tags `v0.2.1`, `v0.3.1` · both releases published · branches retained (delete_branch_on_merge=false). GitHub-dispatched GPU regression remains gated behind the environment approval + the still-offline runner.
