@@ -1,7 +1,7 @@
 """Matched kernel benchmarks on one Radeon GPU - dense vs block-sparse vs D-LSA Flat vs Tree.
 
-Everything timed here runs on the GPU with synchronized clocks (CUDA events around
-``torch.cuda.synchronize``): the dense SDPA baseline, the positional block-sparse
+Everything timed here runs on the GPU with synchronized clocks (host
+``time.perf_counter`` bracketed by ``torch.cuda.synchronize``): the dense SDPA baseline, the positional block-sparse
 arm, and the port's LSA flat/tree pipelines. A row is only produced when both sides
 of a comparison ran the same shape, dtype and workload; the speedup of a row is
 ``baseline_ms / candidate_ms`` and nothing else, per ``docs/PORT_CONTRACT.md``.
