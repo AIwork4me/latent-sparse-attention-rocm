@@ -41,13 +41,14 @@ def tree_select_batched(
 ):
     """Select by the beam, expand by the Triton kernel - see ``pipeline.tree_select``.
 
-    v0.3.0/T4 outcome: the page-batched walk (``_tree_select_pages``, set-equal to
-    the reference by gate C and kept behind ``LSA_TREE_IMPL=batched``) measured
-    0.81-0.87x the per-page walk at 8k/32k prefill - the launch tax it removes is
-    cheap because each launch is tiny, while batch-max candidate widths and the
-    extra copies cost more than the loop saves. The production default stays the
-    proven per-page walk; a true Triton per-level beam (upstream's layout) is the
-    remaining lever, not torch-level batching.
+    v0.3.0/T4 outcome (audited: evidence/receipts-v0.3.0/ab-tree-select.json): the
+    page-batched walk (``_tree_select_pages``, set-equal to the reference by gate C
+    and kept behind ``LSA_TREE_IMPL=batched``) measured 1.16-1.29x the per-page
+    walk's time at 8k/32k prefill and 1.78-1.86x at decode - the launch tax it
+    removes is cheap because each launch is tiny, while batch-max candidate widths
+    and the extra copies cost more than the loop saves. The production default
+    stays the proven per-page walk; a true Triton per-level beam (upstream's
+    layout) is the remaining lever, not torch-level batching.
     """
     impl = os.environ.get("LSA_TREE_IMPL", "per_page")
     top_k = config.top_k if top_k is None else top_k
