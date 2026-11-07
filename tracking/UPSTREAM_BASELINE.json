@@ -1,6 +1,6 @@
 {
   "upstream_repo": "Prefrontal-AI/latent-sparse-attention",
   "reviewed_head_sha": "5ebea732d639576d2a7579b0de40e6252f9001f5",
-  "reviewed_at_utc": "2026-11-05T12:00:00Z",
-  "status": "Tracked reference only. No ROCm benchmark yet."
+  "reviewed_at_utc": "2026-11-06T00:00:00Z",
+  "status": "Reviewed at 5ebea732. v0.2.1 campaign (2026-11-06) ran against this SHA on gfx1151: 16/16 gates, triaged upstream tests 203 pass / 7 classified, receipts validated. Move only after ROCm review of a new upstream HEAD."
 }

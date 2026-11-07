@@ -1,39 +1,99 @@
-name: ROCm gfx1151 regression (self-hosted)
+name: "GPU regression (trusted gfx1151 - never public PRs)"
+
+# SECURITY CONTRACT (docs/SECURITY_RUNNER_POLICY.md):
+# This workflow is the ONLY sanctioned route to the persistent self-hosted
+# gfx1151 runner. It must NEVER carry a `pull_request` or `pull_request_target`
+# trigger: this repository is public, and untrusted fork PR code executing on
+# the persistent Radeon host would expose the runner user's full $HOME
+# (including live gh credentials), the ROCm venv and sibling checkouts.
+# scripts/check_workflow_security.py fails CI if this file ever regresses.
+#
+# Trusted triggers only:
+#   - push to main (reviewed commits)
+#   - workflow_dispatch with an explicit ref confirmation (write-access actors)
+# The optional `environment: gpu-regression` lets the owner add required
+# reviewers for every dispatch; GitHub auto-creates it on first use.
 on:
   workflow_dispatch:
+    inputs:
+      confirm_ref:
+        description: "Type the exact ref (branch or tag) you intend to test"
+        required: true
+        default: "main"
+      reason:
+        description: "Why this GPU run is needed (kept in the run audit trail)"
+        required: true
+        default: "manual trusted regression"
   push:
     branches: [main]
-  pull_request:
 
-# Requires a self-hosted runner on the AMD Ryzen AI MAX+ PRO 395 (gfx1151) host
-# with the ROCm 10.1 venv prepared per README. No results are published from CI;
-# artifacts carry the receipts for review.
+permissions:
+  contents: read
+
+# One heavy GPU campaign at a time; never cancel a running campaign mid-flight.
+concurrency:
+  group: gpu-regression
+  cancel-in-progress: false
+
 jobs:
   gates-and-kernels:
     runs-on: [self-hosted, linux, rocm, gfx1151]
+    if: github.repository == 'AIwork4me/latent-sparse-attention-rocm'
+    # Owner action (docs/SECURITY_RUNNER_POLICY.md): add required reviewers to
+    # the `gpu-regression` environment so dispatches need an approval click.
+    environment: gpu-regression
     timeout-minutes: 120
+    env:
+      PYTHONPATH: ${{ github.workspace }}/src
+      LSA_RUN_ID: gh-${{ github.run_id }}
     steps:
-      - uses: actions/checkout@v4
+      - name: "Guard: dispatched ref must match the confirmation (fail closed)"
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          expected="${{ inputs.confirm_ref }}"
+          actual="${GITHUB_REF#refs/heads/}"
+          actual="${actual#refs/tags/}"
+          echo "confirmed ref: '$expected' | running ref: '$actual'"
+          if [ "$expected" != "$actual" ]; then
+            echo "::error::dispatch confirm_ref ('$expected') does not match the ref actually running ('$actual') - fat-finger guard"
+            exit 1
+          fi
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.3.0
+        with:
+          persist-credentials: false
+      - name: "Static guard: no public-PR route to a self-hosted runner may exist"
+        run: python3 scripts/check_workflow_security.py
+      - name: Locate the ROCm venv (exact-pinned, outside the workspace)
+        run: |
+          PY="$HOME/Desktop/lsa-rocm-eval-starter/.venv/bin/python"
+          test -x "$PY" || { echo "::error::ROCm venv missing at $PY (see README quick start)"; exit 1; }
+          "$PY" -c "import torch; assert torch.cuda.is_available() and torch.version.hip, 'no ROCm GPU visible'"
+          echo "PYTHON=$PY" >> "$GITHUB_ENV"
       - name: Pin the upstream checkout
         run: bash scripts/checkout_upstream.sh
       - name: Environment preflight (read-only)
-        run: .venv/bin/python -m lsa_rocm_lab.preflight
-      - name: Upstream Triton kernel tests on ROCm
+        run: '"$PYTHON" -m lsa_rocm_lab.preflight'
+      - name: "Upstream Triton kernel tests on ROCm (triaged; unclassified failures fail)"
         run: bash scripts/run_upstream_kernel_tests.sh
-      - name: Port correctness gates (13/13 required)
-        run: .venv/bin/python -m lsa_rocm_lab.port.gates
-      - name: Repository unit tests
-        run: .venv/bin/python -m pytest tests/ -v
+      - name: Port correctness gates (16/16 required, manifest-enforced)
+        run: '"$PYTHON" -m lsa_rocm_lab.port.gates'
+      - name: "Repository unit tests (GPU present: full suite)"
+        run: '"$PYTHON" -m pytest tests/ -v'
       - name: Small matched benchmark receipt (no speedup published from CI)
         env:
           LSA_MAX_CONTEXT: "2048"
           LSA_REPS: "10"
           LSA_STAGE_RECEIPT: /tmp/ci-kernel-receipt.json
-        run: .venv/bin/python -m lsa_rocm_lab.kernel_adapter
+        run: '"$PYTHON" -m lsa_rocm_lab.kernel_adapter'
+      - name: Receipt must validate (fail-closed evidence in CI too)
+        run: '"$PYTHON" scripts/validate_ci_receipt.py /tmp/ci-kernel-receipt.json third_party/upstream.sha'
+      - name: Independent receipt audit (recomputed speedups and provenance)
+        run: '"$PYTHON" scripts/audit_receipts.py --upstream-sha-file third_party/upstream.sha /tmp/ci-kernel-receipt.json'
       - name: Upload receipt
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
-          name: ci-kernel-receipt
+          name: ci-kernel-receipt-gh${{ github.run_id }}
           path: /tmp/ci-kernel-receipt.json
           if-no-files-found: warn
+          retention-days: 90

@@ -244,12 +244,36 @@ def tree_select(
 
 
 def dense_read(q, k, v, scale):
-    """The dense causal baseline - torch SDPA, whatever attention ROCm PyTorch dispatches."""
+    """The dense causal baseline - torch SDPA, whatever attention ROCm PyTorch dispatches.
+
+    The query rows are the *tail* ``q_len`` positions of the ``kv_len``-long cache
+    (a decode step reads ``q_len == 1``, a chunked prefill ``1 < q_len < kv_len``).
+    ``is_causal=True`` alone is wrong for every ``q_len != kv_len`` shape: PyTorch
+    aligns that mask to the top-left, so a single decode query would attend key 0
+    only. Instead: the square case keeps the fused causal flag, one row attends the
+    whole cache unmasked, and a chunk gets an explicit bottom-right-aligned causal
+    mask - key j is visible to chunk row i iff j <= (kv_len - q_len) + i, the
+    absolute positions' causality (gates G and tests/test_dense_read.py pin this).
+    """
     heads_q, heads_kv = q.shape[2], k.shape[2]
-    return F.scaled_dot_product_attention(
-        q.permute(0, 2, 1, 3), k.permute(0, 2, 1, 3), v.permute(0, 2, 1, 3),
-        is_causal=True, scale=scale, enable_gqa=heads_q != heads_kv,
-    ).permute(0, 2, 1, 3)
+    q_len, kv_len = q.shape[1], k.shape[1]
+    if q_len > kv_len:
+        raise ValueError(f"query rows {q_len} exceed the cache {kv_len}: no causal read exists")
+    queries, keys, values = q.permute(0, 2, 1, 3), k.permute(0, 2, 1, 3), v.permute(0, 2, 1, 3)
+    gqa = heads_q != heads_kv
+    if q_len == kv_len:
+        out = F.scaled_dot_product_attention(queries, keys, values, is_causal=True, scale=scale, enable_gqa=gqa)
+    elif q_len == 1:
+        # The one query sits at the cache's last position: everything is visible
+        out = F.scaled_dot_product_attention(queries, keys, values, scale=scale, enable_gqa=gqa)
+    else:
+        causal = torch.arange(kv_len, device=q.device)[None, :] <= torch.arange(
+            kv_len - q_len, kv_len, device=q.device
+        )[:, None]
+        out = F.scaled_dot_product_attention(
+            queries, keys, values, attn_mask=causal, scale=scale, enable_gqa=gqa
+        )
+    return out.permute(0, 2, 1, 3)
 
 
 def lsa_read(q, k, v, read_lists, lengths, scale):

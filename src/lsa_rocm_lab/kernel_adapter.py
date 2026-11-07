@@ -14,6 +14,7 @@ import sys
 
 import torch
 
+from lsa_rocm_lab.gate_manifest import describe, verdict_of
 from lsa_rocm_lab.port import pipeline, upstream_sha
 from lsa_rocm_lab.port.bench import (
     Clock,
@@ -51,12 +52,51 @@ def memory_of(fn) -> tuple:
     return torch.cuda.max_memory_allocated() - before, out
 
 
-def run_matrix(clock: Clock, max_context: int, dtype_name: str, seed: int) -> tuple[list[dict], list[dict]]:
-    """Run every method on every context - matched rows only leave this function."""
+def gates_summary(gates: list[dict] | None, skipped: bool) -> dict:
+    """Fail-closed gate posture for the receipt - never vacuously True.
+
+    ``--skip-gates`` yields ``status="UNVERIFIED"``/``correctness_pass=False``:
+    the benchmark rows may exist, but no speedup from them is claimable. A run
+    suite is only True when it is exactly ``gate_manifest.REQUIRED_GATE_IDS``
+    with every verdict PASS - an empty, short, renamed or failed list never is.
+    """
+    if skipped:
+        return {"correctness_pass": False, "status": "UNVERIFIED", "gates_skipped": True,
+                "reason": "correctness gates skipped by --skip-gates: benchmark UNVERIFIED"}
+    verdict = verdict_of(gates or [])
+    return {"correctness_pass": verdict["ok"], "status": "PASS" if verdict["ok"] else "FAIL",
+            "gates_skipped": False, "reason": describe(verdict)}
+
+
+def parse_contexts(spec: str | None) -> list[int] | None:
+    """'8192,16384' -> [8192, 16384]; None/'' -> None (the full ladder)."""
+    if not spec:
+        return None
+    values = sorted({int(part) for part in spec.split(",") if part.strip()})
+    unknown = [v for v in values if v not in CONTEXTS]
+    if unknown:
+        raise ValueError(f"contexts {unknown} are not in the ladder {CONTEXTS}")
+    return values
+
+
+def run_matrix(
+    clock: Clock,
+    max_context: int,
+    dtype_name: str,
+    seed: int,
+    contexts: list[int] | None = None,
+    phases: tuple[str, ...] = ("prefill", "decode"),
+) -> tuple[list[dict], list[dict]]:
+    """Run every method on every context - matched rows only leave this function.
+
+    ``contexts`` restricts the ladder (repetition runs target strategic shapes);
+    ``phases`` restricts which attention phases run - every produced comparison
+    stays matched: its dense baseline runs in the same process, same shape.
+    """
     dtype = {"fp16": torch.float16, "bf16": torch.bfloat16}[dtype_name]
     stages: list[dict] = []
     comparisons: list[dict] = []
-    for context in CONTEXTS:
+    for context in contexts or CONTEXTS:
         if context > max_context:
             continue
         torch.cuda.empty_cache()
@@ -68,15 +108,15 @@ def run_matrix(clock: Clock, max_context: int, dtype_name: str, seed: int) -> tu
             continue
         config = config_for(context)
         rows = []
-        rows.append(bench_dense_prefill(q, k, v, clock))
-        rows.append(bench_dense_decode(q, k, v, clock))
-        rows += bench_lsa(q, k, v, config, clock, tree=False, phase="prefill")
-        rows += bench_lsa(q, k, v, config, clock, tree=False, phase="decode")
-        rows += bench_block_sparse(q, k, v, config, clock, phase="prefill")
-        rows += bench_block_sparse(q, k, v, config, clock, phase="decode")
-        if context >= 4096:
-            rows += bench_lsa(q, k, v, config, clock, tree=True, phase="prefill")
-            rows += bench_lsa(q, k, v, config, clock, tree=True, phase="decode")
+        if "prefill" in phases:
+            rows.append(bench_dense_prefill(q, k, v, clock))
+        if "decode" in phases:
+            rows.append(bench_dense_decode(q, k, v, clock))
+        for phase in phases:
+            rows += bench_lsa(q, k, v, config, clock, tree=False, phase=phase)
+            rows += bench_block_sparse(q, k, v, config, clock, phase=phase)
+            if context >= 4096:
+                rows += bench_lsa(q, k, v, config, clock, tree=True, phase=phase)
         for row in rows:
             row.update({"context": context, "dtype": dtype_name,
                         "heads": GEOMETRY["heads_q"], "kv_heads": GEOMETRY["heads_kv"],
@@ -85,7 +125,7 @@ def run_matrix(clock: Clock, max_context: int, dtype_name: str, seed: int) -> tu
                         "seed": seed})
             stages.append(row)
         # Matched comparisons: same context/dtype/phase, candidate vs the dense baseline
-        for phase in ("prefill", "decode"):
+        for phase in phases:
             dense = next((r for r in rows if r["method"] == "dense_sdpa" and r["phase"] == phase), None)
             if dense is None:
                 continue
@@ -116,7 +156,15 @@ def main() -> int:
     parser.add_argument("--warmup", type=int, default=int(os.getenv("LSA_WARMUP", "5")))
     parser.add_argument("--seed", type=int, default=20261105)
     parser.add_argument("--skip-gates", action="store_true")
+    parser.add_argument("--contexts", default=os.getenv("LSA_CONTEXTS", ""),
+                        help="comma list restricting the ladder, e.g. 8192,16384,32768")
+    parser.add_argument("--phases", default=os.getenv("LSA_PHASES", "prefill,decode"),
+                        help="comma list: prefill,decode (both by default)")
     args = parser.parse_args()
+    contexts = parse_contexts(args.contexts)
+    phases = tuple(p for p in args.phases.split(",") if p)
+    if not phases or any(p not in ("prefill", "decode") for p in phases):
+        parser.error(f"--phases must be a subset of prefill,decode: {args.phases}")
 
     if not torch.cuda.is_available() or not torch.version.hip:
         print(json.dumps({"status": "BLOCKED", "reason": "no ROCm GPU from torch"}))
@@ -126,30 +174,53 @@ def main() -> int:
         print(json.dumps({"status": "BLOCKED", "reason": f"not gfx1151: {arch}"}))
         return 78
 
-    gates = [] if args.skip_gates else run_all_gates(seed=args.seed)
-    correctness_pass = all(g["status"] == "PASS" for g in gates)
-    for gate in gates:
-        print(json.dumps(gate), flush=True)
-    if not correctness_pass:
-        print(json.dumps({"status": "FAIL", "reason": "correctness gates failed"}), flush=True)
+    gates = None
+    if not args.skip_gates:
+        gates = run_all_gates(seed=args.seed)
+        for gate in gates:
+            print(json.dumps(gate), flush=True)
+    summary = gates_summary(gates, args.skip_gates)
+    if gates is not None and not summary["correctness_pass"]:
+        # A run suite that is short/renamed/failed never proceeds to a benchmark claim
+        print(json.dumps({"status": "FAIL", "reason": summary["reason"]}), flush=True)
         return 1
 
     clock = Clock(warmup=args.warmup, reps=args.reps)
-    stages, comparisons = run_matrix(clock, args.max_context, args.dtype, args.seed)
+    stages, comparisons = run_matrix(clock, args.max_context, args.dtype, args.seed,
+                                     contexts=contexts, phases=phases)
     for row in stages:
         print(json.dumps(row), flush=True)
 
+    # Skipped gates: the rows are real timings but carry no verified-correct claim -
+    # the receipt says UNVERIFIED and run.validate_receipt refuses it (fail-closed)
+    import subprocess
+    from datetime import datetime, timezone
+
+    def _git_head():
+        try:
+            head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=os.path.dirname(__file__),
+                                  capture_output=True, text=True)
+            return head.stdout.strip() if head.returncode == 0 else "UNAVAILABLE"
+        except Exception:
+            return "UNAVAILABLE"
+
     receipt = {
         "kind": "lsa_rocm_kernel",
-        "status": "PASS" if comparisons else "FAIL",
-        "correctness_pass": True,
+        "status": summary["status"] if comparisons else "FAIL",
+        "correctness_pass": summary["correctness_pass"],
+        "gates_skipped": summary["gates_skipped"],
+        "run_id": os.getenv("LSA_RUN_ID", datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-adapter"),
+        "repo_head_sha": _git_head(),
         "upstream_sha": os.getenv("LSA_UPSTREAM_SHA", upstream_sha()),
         "gpu_arch": arch,
+        "gpu_name": torch.cuda.get_device_name(0),
         "torch": torch.__version__,
-        "gates": gates,
+        "command": sys.argv,
+        "gates": gates or [],
         "stages": stages,
         "comparisons": comparisons,
-        "env": {"dtype": args.dtype, "reps": args.reps, "warmup": args.warmup, "seed": args.seed},
+        "env": {"dtype": args.dtype, "reps": args.reps, "warmup": args.warmup, "seed": args.seed,
+                "contexts": contexts or "all", "phases": list(phases)},
     }
     target = os.getenv("LSA_STAGE_RECEIPT")
     if target:
@@ -158,7 +229,11 @@ def main() -> int:
     if not comparisons:
         print(json.dumps({"status": "FAIL", "reason": "no matched comparisons produced"}), flush=True)
         return 1
-    print(json.dumps({"status": "PASS", "comparisons": len(comparisons)}), flush=True)
+    print(json.dumps({"status": summary["status"],
+                      "comparisons": len(comparisons),
+                      "claimable": summary["correctness_pass"]}), flush=True)
+    # Exit 0: the benchmark itself completed. Claimability is the receipt's job -
+    # an UNVERIFIED receipt is rejected by run.validate_receipt whatever this code is.
     return 0
 
 

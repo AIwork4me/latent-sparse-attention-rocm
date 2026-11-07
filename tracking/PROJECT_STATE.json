@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "updated_utc": "2026-11-06T01:05:00Z",
+  "current_milestone": "v0.2.1",
+  "milestone_status": "REVIEW_READY (awaiting owner merge decision on Draft PR #1)",
+  "last_verified": {
+    "main_sha": "5f2918e3fd3441d81b07ed8e9b8c8c47ae5689cb",
+    "pr1_head_sha": "e243ba4e03f996e8650b4eb143dd678eff13c643",
+    "upstream_sha": "5ebea732d639576d2a7579b0de40e6252f9001f5",
+    "upstream_equals_reviewed_pin": true,
+    "gates": "16/16 PASS on gfx1151 at 2139758 (fresh, 2026-11-06)",
+    "upstream_tests": "203 pass / 7 classified / 0 unclassified",
+    "unit_tests": "133 passed",
+    "receipt_audit": "6/6 claim receipts APPROVED, 111 comparisons recomputed (evidence/audit-v0.2.1.json)",
+    "trusted_gpu_ci": "run 42139297335 success; guard-negative run 42139650668 failed closed as designed",
+    "cpu_pr_ci": "run 42139623108 success (GitHub-hosted, zero secrets)"
+  },
+  "blockers": [
+    {
+      "id": "OWNER-APPROVAL-PR1",
+      "kind": "approval",
+      "summary": "PR #1 (v0.2.1) is Draft and review-ready; merge + tag only on owner approval",
+      "owner": "repo owner",
+      "opened": "2026-11-06"
+    },
+    {
+      "id": "RUNNER-HARDENING",
+      "kind": "owner-action",
+      "summary": "Move runner out of interactive amd user / rotate gh credential / add gpu-regression environment reviewers (docs/SECURITY_RUNNER_POLICY.md §4)",
+      "owner": "repo owner",
+      "opened": "2026-11-06"
+    },
+    {
+      "id": "SGLANG-E2E",
+      "kind": "external",
+      "summary": "SGLang AMD path is MI-class; gfx1151 image lane (ROCm 7.2.4) is a separate feasibility lane for v0.6.0",
+      "owner": "engineering",
+      "opened": "before v0.2.1"
+    }
+  ],
+  "gpu_resource_state": {
+    "host": "AMD Ryzen AI MAX+ PRO 395, Radeon 8060S gfx1151, 32 GiB UMA",
+    "runtime": "ROCm 10.1.0 pip-wheel venv (.venv), torch 2.14.0+rocm10.1.0",
+    "policy": "one heavy campaign at a time; <=10h unattended cap; trusted local or confirmed-dispatch only"
+  },
+  "approval_requirements": [
+    "Merge PR #1 / mark Ready",
+    "Tag v0.2.1",
+    "Any external upstream PR or paid cloud spend"
+  ],
+  "next_action": "Await owner review of docs/reviews/PR1_FINAL_INDEPENDENT_REVIEW.md; meanwhile open v0.3.0 work-plan draft (see docs/CONTINUATION.md)"
+}
