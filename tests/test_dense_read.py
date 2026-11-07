@@ -129,4 +129,5 @@ def test_run_all_gates_emits_required_gate_ids():
         "D1:bf16", "D2:bf16",
         "E", "F",
         "G:fp32", "G:fp16", "G:bf16",
+        "H",  # v0.3.0: tiled production read == v1 + zero-length contract
     ]

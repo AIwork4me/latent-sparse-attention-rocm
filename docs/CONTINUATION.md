@@ -1,55 +1,80 @@
 # CONTINUATION — exact resume point for the next session
 
-Updated: 2026-11-06 (session: F10/F11/F12 closure + independent review)
-Branch: `v0.2.1-scientific-validity` · head `e243ba4e03f996e8650b4eb143dd678eff13c643`
-PR: #1 (Draft, review-ready) · main: `5f2918e3` · upstream pin: `5ebea732` (== upstream main)
+Updated: 2026-11-07 (release-readiness pass on PR #5; v0.3.0 + v0.3.1 complete)
+Branch: `v0.3.0-kernel-optimization` · code head `0908842` (src = `60c004b` + a docstring-only T4 comment fix) · test-fix `5a13bf0` · docs-only commits above those
+PR: #5 (Draft, stacked behind PR #1 — do not merge before it; title/body now describe the implemented v0.3.0+v0.3.1, not the plan) · PR #1: still Draft at `79412f8` (owner has NOT acted)
+main: `5f2918e3` · upstream pin: `5ebea732` (== upstream main)
 
-## What just happened (verified, do not re-run)
+## SHA bookkeeping (explicit, per the mission contract)
 
-- F10/F11/F12 closed, committed `2139758` + CI fixes `e243ba4`; pushed.
-- Live validation: PR events → CPU-only workflow (runs 42139138701→42139629501);
-  trusted GPU dispatch on the PR branch succeeded (run 42139297335, receipt
-  APPROVED); mismatched `confirm_ref` dispatch failed closed in 20s (run 42139650668).
-- All 6 v0.2.1 claim receipts APPROVED by the new independent auditor
-  (`evidence/audit-v0.2.1.json`, 111 comparisons recomputed).
-- Fresh local evidence at head: gates 16/16, upstream 203/7/0, pytest 133 passed,
-  post-fix receipt `evidence/receipt-2139758-postfix-verification.json`.
-- Independent review written: `docs/reviews/PR1_FINAL_INDEPENDENT_REVIEW.md` → **GO
-  (merge-ready) for v0.2.1 validity scope; NO-GO beyond**; L1–L5 open LOW findings.
-- Ledgers created: `tracking/PROJECT_STATE.json`, `tracking/MILESTONES.yaml`,
-  `docs/DECISION_LOG.md`, `docs/EVIDENCE_INDEX.md`.
+- **Production code SHA** (what receipts/gates describe): `60c004b` = v0.3.1 topk select. `0908842` = `60c004b` + `_tree.py` docstring correction ONLY — proven non-behavioral (gates 17/17 both impls re-run at that tree; 186 unit tests pass). Perf receipts stay pinned at `60c004b`; **no new performance measurement was claimed this session.**
+- **Test-only commit**: `5a13bf0` (tests/test_select_topk.py device portability; no src change).
+- **Doc-only commits**: everything else on the branch above `60c004b` (`849a80e`, `47e63f7`, `2f3002c`, and this session's docs).
+- **Eventual merged SHA**: NONE YET — merge condition remains a fresh 17/17 receipt at whatever SHA merges.
 
-## Awaiting owner
+## What just happened (verified this session; do not re-run without cause)
 
-- AWAITING_OWNER_APPROVAL: merge PR #1, then tag `v0.2.1` only after a trusted GPU
-  run on the post-merge main SHA is green. Runner hardening items:
-  `docs/SECURITY_RUNNER_POLICY.md` §4.
+- **GitHub CPU CI repaired**: runs 42260195840 / 42260187512 failed at `2f3002c` with exactly 5 failures in `tests/test_select_topk.py` (`Torch not compiled with CUDA enabled` — hardcoded `device="cuda"` on the CPU-only wheel). Fix `5a13bf0`: device-parametrized tests (`cpu` everywhere + visible ROCm device when present). No skip/xfail/relaxed assertions; tied-score, EMPTY, k==width, ragged, production-shape coverage all still execute. Green run: 42371335910 (and 42371339224). Local CPU-wheel venv reproduction: pre-fix 5 failed/130 passed/46 skipped (identical to CI), post-fix **135 passed / 46 skipped / 0 failed**. On gfx1151 the suite is now **186 passed** (was 181; each equivalence case runs cpu+cuda).
+- **Evidence verified, not re-measured**: v0.3.1 final receipts at `60c004b` — 11/11 auditor-APPROVED, 153 comparisons recomputed, 17/17 gates, upstream `5ebea732`, gfx1151. Indexed as **EV-2026-11-07-J** in docs/EVIDENCE_INDEX.md.
+- **`evidence/SHA256SUMS` repaired**: 2 of 71 lines had an erroneous `evidence/` path prefix (files exist, hashes matched) — prefixes fixed, hashes untouched; `cd evidence && sha256sum -c SHA256SUMS` now 71/71 OK. Historical evidence bytes immutable.
+- **Stale T4 commentary fixed**: `_tree.py` docstring said "0.81-0.87x the per-page walk" (superseded early number); corrected to the audited artifact (`evidence/receipts-v0.3.0/ab-tree-select.json`): batched 1.16–1.29× slower prefill / 1.78–1.86× slower decode.
+- **Gates re-verified at the reconciled tree**: 17/17 PASS, default AND `LSA_TREE_IMPL=batched`, on gfx1151 (this is a correctness re-run, not a new perf claim).
+- PR #5 title + Description rewritten to the implemented state (see the PR); still Draft.
+
+## Awaiting owner (unchanged)
+
+- PR #1 merge + tag v0.2.1 (after a trusted GPU run on the post-merge main SHA).
+- Runner hardening per `docs/SECURITY_RUNNER_POLICY.md` §4 (issue #3).
+- PR #5 review; **merge condition**: fresh 17/17 receipt at whatever SHA merges.
 
 ## ONE next most important action
 
-Create the v0.3.0 work-plan branch: `git checkout -b v0.3.0-kernel-optimization
-v0.2.1-scientific-validity` … write `docs/OPTIMIZATION_PLAN_v0.3.md` (start with the
-seed-study + read-kernel profiling tasks from `tracking/MILESTONES.yaml`), open a
-Draft PR against `main` stating it is staged behind PR #1. No GPU campaign until the
-plan's profiling scripts exist; the seed-study (≥3 seeds, 32k bf16 decode) is the
-first safe GPU task if the machine is idle.
+Owner review of PR #5 (title/body now describe the implemented work, positive
+AND negative results, tested configs, evidence links, limitations, merge
+conditions). Engineering next lever (only on owner go-ahead, measured order):
+fused pack→expand select pass — `docs/OPTIMIZATION_v0.3.md` §h. If the owner
+merges PR #1 first: retarget PR #5 per §13 of the mission doc.
 
 ## Resume commands
 
 ```bash
-cd ~/Desktop/lsa-rocm-eval-starter && git status --porcelain=v1 && git log --oneline -3
+cd ~/Desktop/lsa-rocm-eval-starter && git status --porcelain=v1 && git log --oneline -5
 gh pr view 1 --json state,isDraft,headRefOid   # has the owner acted?
-.venv/bin/python -m pytest tests/ -q           # baseline must stay 133 passed
+gh pr view 5 --json state,isDraft,headRefOid
+.venv/bin/python -m pytest tests/ -q           # baseline: 186 passed on gfx1151
+PYTHONPATH=src .venv/bin/python -m lsa_rocm_lab.port.gates | tail -1   # 17/17
 python3 scripts/check_workflow_security.py     # routing guard must stay green
-gh run list --limit 5                          # CI posture
+gh run list --limit 5                          # CPU CI posture (green at/above 5a13bf0)
+cd evidence && sha256sum -c SHA256SUMS | grep -cv ": OK$"   # must be 0
 ```
 
-## Risks / gotchas (fresh this session)
+## Risks / gotchas (carried + fresh)
 
-- GitHub-hosted CPU runners need `PYTHONPATH=src`, a `triton` wheel and the pinned
-  upstream checkout or the port import chain fails collection (fixed in cpu-pr.yml).
-- `checkout_upstream.sh` now pins the reviewed SHA from tracking/UPSTREAM_BASELINE.json;
-  moving the pin requires an explicit `UPSTREAM_REF` + review.
-- Unquoted YAML step names containing ": " break parsing (again).
-- Do not let the auditor's run-id regex drift: accepted shapes are
-  `<ts>Z`, `<ts>Z-adapter`, `gh-<id>`, `rep<N>-<ts>Z`.
+- Profiler-inflated "GPU totals" exceed unprofiled wall on this ROCm build —
+  attribute by kernel-table SHARES, cost by synchronized p50.
+- `pkill -f <pattern>` matches your own heredoc's command line — kill by PID.
+- Full-batch tree einsum gathers are multi-GiB at 32k (UMA thrash) — chunked
+  PAGE_CHUNK=4; any batched-tree work must re-run `scripts/ab_tree_select.py`.
+- A/B scripts must use receipt methodology (warmup 5 / reps 20) and gate
+  equivalence before timing.
+- Kill leftover GPU python from prior campaigns before benchmarking.
+- NEW: tests that are device-independent contracts should parametrize
+  `["cpu"] + (["cuda"] if ROCm visible else [])` — never hardcode
+  `device="cuda"` in files without the `LSA_SKIP_GPU_TESTS` module guard; the
+  GitHub CPU wheel raises at allocation, not collection, so CI catches it
+  only at run time.
+- NEW (R1 adversarial F10): device-parametrized tests' `cuda` params vanish
+  SILENTLY (no skip marker) when the GPU is invisible at collection time on a
+  GPU host - acceptable for equivalence contracts (cpu params always run), but
+  do not expect a loud skip; `LSA_SKIP_GPU_TESTS=1` does not gate that file,
+  so cuda params still execute on a GPU host under that env var.
+- NEW (R1 adversarial F1/F2/F3): the workflow-security guard now uses a
+  hosted-label ALLOWLIST (ubuntu/macos/windows globs; everything else incl.
+  `${{ }}` expressions and custom label sets counts as persistent-host), R6
+  rejects `workflow_call`+non-hosted without the reviewed marker, R5 scans
+  workflow-level env/defaults, and cpu-pr.yml re-runs the guard from
+  origin/main so fork PRs cannot neuter it. Keep those semantics if touching
+  the guard; extend the fixtures in tests/test_workflow_security.py.
+- NEW: pip from download.pytorch.org can stall (0 B/s) for long stretches on
+  this host — the aliyun mirror is ~7× faster for generic packages; torch CPU
+  wheel must still come from the pytorch index.

@@ -75,7 +75,7 @@ jobs:
         run: '"$PYTHON" -m lsa_rocm_lab.preflight'
       - name: "Upstream Triton kernel tests on ROCm (triaged; unclassified failures fail)"
         run: bash scripts/run_upstream_kernel_tests.sh
-      - name: Port correctness gates (16/16 required, manifest-enforced)
+      - name: Port correctness gates (17/17 required, manifest-enforced)
         run: '"$PYTHON" -m lsa_rocm_lab.port.gates'
       - name: "Repository unit tests (GPU present: full suite)"
         run: '"$PYTHON" -m pytest tests/ -v'

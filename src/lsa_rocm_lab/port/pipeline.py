@@ -24,7 +24,7 @@ from lsa_rocm_lab.port import (
     triton_top_k,
     triton_ward,
 )
-from lsa_rocm_lab.port.read_kernel import sparse_read
+from lsa_rocm_lab.port.read_kernel_tiled import sparse_read_auto as sparse_read
 from lsa.core.kernels.triton.keys import unpack_ids
 
 
@@ -185,6 +185,21 @@ def visible_counts(positions: torch.Tensor, buckets: Buckets, config: PortConfig
     return (positions // config.cluster_block_size * config.block_bucket_count).clamp_max(buckets.rows).int()
 
 
+def best_first_keys(keys: torch.Tensor, top_p: int) -> torch.Tensor:
+    """The best ``top_p`` packed keys per row, best first - topk, not a full sort.
+
+    Upstream's pack is unique per column (score bits high, ``0x7FFFFFFF - column``
+    low), so no two keys tie: ``torch.topk(..., sorted=True)`` returns exactly
+    ``torch.sort(..., descending=True).values[:, :top_p]``. The full sort it
+    replaces ordered up to 4x more keys than needed (the listing is a superset)
+    and left a strided slice for the unpack - together ~19% of the prefill
+    select's profiled cost (docs/OPTIMIZATION_v0.3.md b). Equivalence is pinned
+    by tests/test_select_topk.py on tied scores, EMPTY keys and k == width.
+    """
+    k = min(top_p, keys.shape[1])
+    return torch.topk(keys, k=k, dim=1, sorted=True).values
+
+
 def flat_select(
     index_queries: torch.Tensor,
     positions: torch.Tensor,
@@ -215,8 +230,7 @@ def flat_select(
         scores = torch.mm(queries, buckets.centroids.t(), out_dtype=torch.float32)
     listing = triton_top_k.TopK(config.top_p, exact=False)
     keys, _ = listing.listed(scores, counts)
-    keys = torch.sort(keys, dim=1, descending=True).values
-    picked = unpack_ids(keys[:, : config.top_p])
+    picked = unpack_ids(best_first_keys(keys, config.top_p))
     return triton_expansion.expand_in_order(
         picked, buckets.members, positions.int(), config.window_size, config.sink_size, top_k
     )

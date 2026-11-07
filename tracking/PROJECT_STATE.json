@@ -1,19 +1,22 @@
 {
   "schema_version": 1,
-  "updated_utc": "2026-11-06T01:05:00Z",
-  "current_milestone": "v0.2.1",
-  "milestone_status": "REVIEW_READY (awaiting owner merge decision on Draft PR #1)",
+  "updated_utc": "2026-11-07T12:12:00Z",
+  "current_milestone": "v0.3.0",
+  "milestone_status": "REVIEW_READY (v0.3.0 + v0.3.1 topk-select; adversarial review GO, findings closed; final evidence at 60c004b: 11/11 APPROVED; release-readiness defects closed 2026-11-07: CPU CI test portability fixed, docs reconciled; owner review pending)",
   "last_verified": {
     "main_sha": "5f2918e3fd3441d81b07ed8e9b8c8c47ae5689cb",
-    "pr1_head_sha": "e243ba4e03f996e8650b4eb143dd678eff13c643",
+    "pr1_head_sha": "79412f8a8b4fcb09f09f4a41b6eb07d075dbe3b1",
+    "pr5_code_head_sha": "0908842 (src: 60c004b + docstring-only T4 comment fix, proven non-behavioral; gates re-verified 17/17 both impls)",
+    "pr5_test_fix_sha": "5a13bf0 (tests/test_select_topk.py device portability; GitHub CPU CI run 42371335910 SUCCESS: 135 passed / 46 skipped / 0 failed)",
+    "pr5_head_note": "doc-only commits sit above 0908842 on the branch; distinguish code SHA (0908842) from doc commits; eventual merged SHA still TBD (fresh 17/17 receipt is the merge condition)",
     "upstream_sha": "5ebea732d639576d2a7579b0de40e6252f9001f5",
     "upstream_equals_reviewed_pin": true,
-    "gates": "16/16 PASS on gfx1151 at 2139758 (fresh, 2026-11-06)",
-    "upstream_tests": "203 pass / 7 classified / 0 unclassified",
-    "unit_tests": "133 passed",
-    "receipt_audit": "6/6 claim receipts APPROVED, 111 comparisons recomputed (evidence/audit-v0.2.1.json)",
-    "trusted_gpu_ci": "run 42139297335 success; guard-negative run 42139650668 failed closed as designed",
-    "cpu_pr_ci": "run 42139623108 success (GitHub-hosted, zero secrets)"
+    "gates": "17/17 PASS on gfx1151 (receipts at 1e73c3a/60c004b; re-verified 2026-11-07 at the 0908842 tree, default AND LSA_TREE_IMPL=batched)",
+    "unit_tests": "186 passed at 0908842 on gfx1151 (was 181 at 60c004b; +5 cpu-device params of the topk equivalence tests); GitHub-hosted CPU CI green: 135 passed / 46 GPU tests skipped loudly",
+    "receipt_audit": "11/11 APPROVED at 60c004b (153 recomputed); cumulative v0.3.x counting rule: 42 unique audited receipts = 6 matrix (2 each at 4988672/1e73c3a/60c004b) + 36 seed-study (4 studies x 9), plus 2 A/B artifacts; no new performance measurement claimed since",
+    "evidence_integrity": "evidence/SHA256SUMS 71/71 OK after repairing 2 erroneous path prefixes (hashes untouched, historical evidence immutable)",
+    "cpu_ci": "green at 5a13bf0+ (runs 42371335910 push / 42371339224 pull_request); prior failures 42260195840/42260187512 fixed, nothing hidden - all portable topk equivalence cases execute on CPU",
+    "headline": "32k bf16 at 60c004b: prefill flat 0.210x; decode flat 1.94x med (1.85-2.06), block-sparse 4.29x (4.24-4.38), tree 0.93x; decode select stage 1.24x (topk)"
   },
   "blockers": [
     {
@@ -24,9 +27,16 @@
       "opened": "2026-11-06"
     },
     {
+      "id": "OWNER-REVIEW-PR5",
+      "kind": "approval",
+      "summary": "PR #5 (v0.3.0+v0.3.1) review-ready since 2026-11-07; title/body describe implemented work; fresh 17/17 receipt at the eventual merge SHA is the merge condition",
+      "owner": "repo owner",
+      "opened": "2026-11-07"
+    },
+    {
       "id": "RUNNER-HARDENING",
       "kind": "owner-action",
-      "summary": "Move runner out of interactive amd user / rotate gh credential / add gpu-regression environment reviewers (docs/SECURITY_RUNNER_POLICY.md §4)",
+      "summary": "Move runner out of interactive amd user / rotate gh credential / add gpu-regression environment reviewers (docs/SECURITY_RUNNER_POLICY.md \u00a74)",
       "owner": "repo owner",
       "opened": "2026-11-06"
     },
@@ -48,5 +58,5 @@
     "Tag v0.2.1",
     "Any external upstream PR or paid cloud spend"
   ],
-  "next_action": "Await owner review of docs/reviews/PR1_FINAL_INDEPENDENT_REVIEW.md; meanwhile open v0.3.0 work-plan draft (see docs/CONTINUATION.md)"
+  "next_action": "Owner: review PR #1 (unchanged) and PR #5 (rewritten to implemented state 2026-11-07); fresh receipt at the eventual merge SHA is a merge condition. v0.3.1+ attack order measured: fused pack->expand select pass, Triton beam port, decode select fusion (docs/OPTIMIZATION_v0.3.md h). No new kernel optimization started."
 }

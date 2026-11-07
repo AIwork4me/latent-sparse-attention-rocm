@@ -20,7 +20,7 @@ import torch
 from lsa_rocm_lab.port import pipeline
 from lsa_rocm_lab.port.gates import make_index_space
 from lsa_rocm_lab.port.pipeline import PortConfig
-from lsa_rocm_lab.port.read_kernel import sparse_read
+from lsa_rocm_lab.port.read_kernel_tiled import sparse_read_auto as sparse_read
 
 
 def sync():

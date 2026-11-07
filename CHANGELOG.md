@@ -2,6 +2,47 @@
 
 All notable changes to this repository. Dates are UTC.
 
+## [0.3.1] — 2026-11-07
+
+Top-k key selection replaces the flat select's full-width sort + strided slice.
+Full narrative: `docs/OPTIMIZATION_v0.3.md` §(v0.3.1); receipts at `60c004b`
+(`evidence/receipts-v0.3.1-final/`, 11/11 auditor-APPROVED, 153 comparisons).
+
+### Changed
+- `best_first_keys` now uses `torch.topk(k, sorted=True)` — packed keys are
+  unique per column (score bits high, `0x7FFFFFFF - column` low), so topk is
+  exactly `sort(...).values[:, :k]`; the replaced sort ordered up to 4× more
+  keys than needed (~19% of the prefill-select profile) and left a strided
+  slice. Equivalence pinned by device-parametrized tests (tied scores, EMPTY
+  keys, k == width, ragged rows, production shapes) on CPU everywhere plus
+  the ROCm device when visible (suite 181 → 186 on gfx1151).
+- Receipt-backed effect: 32k bf16 decode select stage 0.528 → 0.466 ms
+  (1.13×); prefill neutral. (An identical-input in-process A/B measured
+  1.24×; artifact not retained — the receipt-backed figure is the citable
+  one.)
+
+## [0.3.0] — 2026-11-07
+
+Kernel optimization cycle T1–T4 with honest bands and a kept negative result.
+Full narrative: `docs/OPTIMIZATION_v0.3.md`, campaign report, EV index.
+
+### Added
+- T1 multi-seed studies (issue #2): honest variance bands replace single-seed
+  headlines — 32k bf16 decode: block-sparse 4.29× (4.24–4.38), flat 1.94×
+  (1.85–2.06; the v0.2.1 "2.1×" was a favorable seed), tree 0.93× (not
+  faster than dense); prefill flat 0.210× vs dense.
+- T3 tiled sparse read (production): row-tiled Triton kernel, prefill-stage
+  1.14–1.24× over v1 on identical inputs; new gate H (manifest 16 → 17);
+  zero-length NaN contract fixed and gated.
+
+### Fixed
+- B>1 ragged-tile row-mask bug caught by the new equivalence tests pre-release.
+
+### Changed
+- T4 page-batched tree beam measured 1.16–1.86× SLOWER (audited A/B) —
+  kept experimental behind `LSA_TREE_IMPL=batched`; production stays on the
+  per-page walk (launch tax is not the cost; the beam is op-bound).
+
 ## [0.2.1] — 2026-11-06
 
 Scientific validity closure: the decode baseline defect, fail-closed evidence,

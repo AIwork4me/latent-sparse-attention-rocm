@@ -105,6 +105,67 @@ jobs:
       - run: echo ${{ secrets.GPU_TOKEN }}
 """
 
+# --- R1 adversarial additions (2026-11-07 independent review, finding F1) ---
+# Custom label sets / expressions must count as non-hosted: only the literal
+# 'self-hosted' marker used to, which let a fork PR route to the persistent
+# host by simply omitting it.
+
+EVIL_PR_CUSTOM_LABELS = f"""
+name: evil-custom-labels
+on: pull_request
+jobs:
+  gpu:
+    runs-on: [linux, rocm, gfx1151]
+    steps:
+      - uses: actions/checkout@{SHA}
+"""
+
+EVIL_PR_MATRIX_RUNNER = f"""
+name: evil-matrix-runner
+on: pull_request
+jobs:
+  gpu:
+    runs-on: ${{{{ matrix.runner }}}}
+    strategy:
+      matrix:
+        runner: [[self-hosted, linux, rocm, gfx1151]]
+    steps:
+      - uses: actions/checkout@{SHA}
+"""
+
+EVIL_REUSABLE_SELFHOSTED = f"""
+name: evil-reusable
+on: workflow_call
+jobs:
+  gpu:
+    runs-on: [self-hosted, gfx1151]
+    steps:
+      - uses: actions/checkout@{SHA}
+"""
+
+WF_LEVEL_SECRET_TO_NONHOSTED = """
+name: wf-level-secret
+on: push
+env:
+  LEAKED: ${{ secrets.GH_PAT }}
+jobs:
+  gpu:
+    runs-on: [self-hosted]
+    steps:
+      - uses: actions/checkout@""" + SHA + """
+      - run: echo "$LEAKED" > /tmp/leak
+"""
+
+HOSTED_PR_IS_FINE = f"""
+name: hosted-pr
+on: pull_request
+jobs:
+  cpu:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@{SHA}
+"""
+
 
 class TestRules:
     def test_trusted_gpu_workflow_passes(self, tmp_path):
@@ -130,6 +191,30 @@ class TestRules:
     def test_r5_secrets_on_self_hosted_is_caught(self, tmp_path):
         findings = check_all(_write(tmp_path, SELF_HOSTED_SECRET))
         assert any(f.startswith("R5") and "secrets.GPU_TOKEN" in f for f in findings)
+
+    def test_r1_custom_label_set_without_self_hosted_marker_is_caught(self, tmp_path):
+        findings = check_all(_write(tmp_path, EVIL_PR_CUSTOM_LABELS))
+        assert any(f.startswith("R1") and "'pull_request'" in f for f in findings)
+
+    def test_r1_matrix_expression_runner_is_caught(self, tmp_path):
+        findings = check_all(_write(tmp_path, EVIL_PR_MATRIX_RUNNER))
+        assert any(f.startswith("R1") and "'pull_request'" in f for f in findings)
+
+    def test_r6_workflow_call_with_non_hosted_job_is_caught(self, tmp_path):
+        findings = check_all(_write(tmp_path, EVIL_REUSABLE_SELFHOSTED))
+        assert any(f.startswith("R6") for f in findings)
+
+    def test_r5_workflow_level_env_secret_reaching_non_hosted_is_caught(self, tmp_path):
+        findings = check_all(_write(tmp_path, WF_LEVEL_SECRET_TO_NONHOSTED))
+        assert any(f.startswith("R5") and "secrets.GH_PAT" in f for f in findings)
+
+    def test_r6_reviewed_allowlist_marker_passes(self, tmp_path):
+        body = "# guard-r6-allow: reviewed-reusable-workflow\n" + EVIL_REUSABLE_SELFHOSTED
+        findings = check_all(_write(tmp_path, body))
+        assert not any(f.startswith("R6") for f in findings)
+
+    def test_hosted_pr_workflow_passes(self, tmp_path):
+        assert check_all(_write(tmp_path, HOSTED_PR_IS_FINE)) == []
 
     def test_no_workflow_files_is_a_finding(self, tmp_path):
         assert check_all(tmp_path / "nowhere")

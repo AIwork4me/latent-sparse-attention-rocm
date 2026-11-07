@@ -12,19 +12,27 @@ runtime from AMD's pip wheels, PyTorch `2.14.0+rocm10.1.0`, Triton
 hierarchy pairing), the top-k listing and rank-order expansion run **upstream's own
 Triton kernels** on the Radeon GPU; the sparse read — which upstream delegates to
 NVIDIA-only attention backends — is a **Triton gather-attention kernel written for
-this port**; every path is held to upstream's pure-PyTorch oracle by a 16-gate
+this port**; every path is held to upstream's pure-PyTorch oracle by a 17-gate
 correctness suite (manifest-enforced: a skipped or short suite can never validate
 a receipt). Benchmarks compare dense SDPA, a positional block-sparse arm,
 D-LSA Flat and D-LSA Tree on matched shapes with synchronized timings.
 
-**Headline (v0.2.1, corrected decode baseline; median of 3 independent runs):**
-decode select+read at 32k ctx, bf16 — **block-sparse 3.9×**, **D-LSA Flat
-2.1×** (spread 1.5–2.4×), D-LSA Tree **0.9× (not faster than dense)**; prefill
-remains slower than dense at ≤32k (0.19×). Full receipt-generated tables:
-[`docs/BENCHMARKS.md`](docs/BENCHMARKS.md). **All v0.2.0 decode speedups are
-superseded** — the v0.2.0 dense-decode baseline masked a single-token query to
-key 0 and was ~2.8× slower than the correct dispatch, inflating every old
-speedup ([`docs/RESULTS_v0.2.0.md`](docs/RESULTS_v0.2.0.md),
+**Headline (v0.3.x, final receipts at `60c004b` — tiled sparse read + topk
+select in production; 17/17 correctness gates; all receipts independently
+audited):** decode select+read at 32k ctx, bf16 — **block-sparse 4.29×**
+(cross-seed band 4.24–4.38×, robust), **D-LSA Flat 1.94×** (band 1.85–2.06× —
+the v0.2.1 "2.1×" figure came from one favorable seed and does **not**
+generalize; see the multi-seed section of
+[`docs/BENCHMARKS.md`](docs/BENCHMARKS.md)), D-LSA Tree **0.93× (not faster
+than dense)**; prefill **0.210× vs dense** (up from 0.19×: the tiled read is
+1.14–1.24× over v0.2.1's kernel on identical inputs, production config;
+attribution and the honest waterfall in
+[`docs/OPTIMIZATION_v0.3.md`](docs/OPTIMIZATION_v0.3.md)). Single-receipt runs
+can land below the band — cite the band, not one run.
+Full receipt-generated tables: [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md).
+**All v0.2.0 decode speedups are superseded** — the v0.2.0 dense-decode baseline
+masked a single-token query to key 0 and was ~2.8× slower than the correct
+dispatch, inflating every old speedup ([`docs/RESULTS_v0.2.0.md`](docs/RESULTS_v0.2.0.md),
 [`docs/REVIEW_v0.2.1.md`](docs/REVIEW_v0.2.1.md)).
 
 **What is explicitly not claimed:** end-to-end SGLang serving on gfx1151 (BLOCKED,
@@ -54,7 +62,7 @@ python -m lsa_rocm_lab.preflight              # hardware/toolchain manifest (har
 python -m lsa_rocm_lab.correctness            # upstream reference == dense SDPA on GPU
 python -m lsa_rocm_lab.triton_probe           # Triton HIP JIT smoke (not LSA)
 bash scripts/run_upstream_kernel_tests.sh     # upstream's Triton kernel tests, triaged on ROCm
-python -m lsa_rocm_lab.port.gates             # the port's 16-gate oracle parity suite
+python -m lsa_rocm_lab.port.gates             # the port's 17-gate oracle parity suite
 python -m lsa_rocm_lab.kernel_adapter         # matched benchmarks + validated receipt
 python -m lsa_rocm_lab.run --quick            # starter stage chain (BLOCKED-safe)
 bash scripts/campaign.sh                      # bounded campaign: pilot + overnight profile

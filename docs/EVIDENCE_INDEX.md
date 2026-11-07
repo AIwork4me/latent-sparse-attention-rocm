@@ -4,6 +4,15 @@ Latest first. Every claim in README/FINAL_REPORT/BENCHMARKS must trace to an ent
 
 | ID | What | Path / URL | Anchor |
 |---|---|---|---|
+| EV-2026-11-07-J | FINAL v0.3.1 (topk select, `60c004b`) receipts: bf16+fp16 matrices, 17/17 gates, + 9-receipt seed study — 11/11 audit APPROVED, 153 comparisons recomputed | `evidence/receipts-v0.3.1-final/`, `evidence/seed-study-20261106T171352Z/` | `audit-v031.json` |
+| EV-2026-11-07-I | FINAL v0.3.0 receipts at `1e73c3a` (bf16+fp16, 17/17 gates) + 9-receipt seed study, 11/11 audit APPROVED (153 recomputed) | `evidence/receipts-v0.3.0-final/`, `evidence/seed-study-20261106T170105Z/` | `audit-final.json` |
+| EV-2026-11-07-H | T4 A/B artifact: page-batched vs per-page tree walk, set-equality-gated (batched 1.16–1.86× slower — negative result) | `evidence/receipts-v0.3.0/ab-tree-select.json` | `rows[].set_equal` |
+| EV-2026-11-07-G | Independent adversarial review of v0.3.0 (GO-WITH-FINDINGS, F1–F7 disposition) | `docs/reviews/V0_3_INDEPENDENT_REVIEW.md` | verdict |
+| EV-2026-11-07-D | v0.3.0 full-matrix receipts (bf16+fp16) on the tiled production read at HEAD `4988672` (17/17 gates, 72 comparisons) + independent audit APPROVED | `evidence/receipts-v0.3.0/` | run ids `20261106T…Z-adapter` |
+| EV-2026-11-07-C | Multi-seed study re-run on the tiled kernel: 9 receipts, audit APPROVED (81 recomputed); bands in BENCHMARKS.md | `evidence/seed-study-20261106T155417Z/` | `seed-study.json` |
+| EV-2026-11-07-B | Tiled-vs-v1 read A/B on identical inputs, per-config correctness-gated (1.24/1.18/1.15× prefill) | `evidence/receipts-v0.3.0/ab-read-kernel.json` | `best` block |
+| EV-2026-11-07-A | T1 multi-seed study on the v0.2.1 kernel: 9 receipts, audit APPROVED; corrected the 2.1× flat headline to a band | `evidence/seed-study-20261106T151843Z/` | `seed-study.json` |
+| EV-2026-11-06-D | T2 stage profiling (cold + warm kernel tables, kernel IDs) backing docs/OPTIMIZATION_v0.3.md | `evidence/profile-32k-bf16-20261106/` | `warm-32k-bf16.json` |
 | EV-2026-11-06-C | Post-fix verification receipt at head `2139758` (2048/reps10, 12 comparisons, gates 16/16) + audit | `evidence/receipt-2139758-postfix-verification.json`, `evidence/audit-2139758-postfix.json` | receipt `run_id 20261106T…Z-adapter`, repo HEAD `2139758` |
 | EV-2026-11-06-B | Trusted GPU dispatch run on PR branch (success; artifact re-audited locally: APPROVED) | https://github.com/AIwork4me/latent-sparse-attention-rocm/actions/runs/42139297335 | artifact `ci-kernel-receipt-gh42139297335` |
 | EV-2026-11-06-A | Fat-finger guard negative run (mismatched confirm_ref fails closed, 20s) | https://github.com/AIwork4me/latent-sparse-attention-rocm/actions/runs/42139650668 | guard step error line |

@@ -2,7 +2,7 @@
 # States: NOT_STARTED | IN_PROGRESS | BLOCKED | VERIFYING | REVIEW_READY | APPROVED | DONE
 
 schema_version: 1
-updated_utc: "2026-11-06T01:05:00Z"
+updated_utc: "2026-11-07T05:20:00Z"
 
 v0.2.1:
   status: REVIEW_READY
@@ -20,18 +20,30 @@ v0.2.1:
   remaining: ["owner merge decision", "post-merge trusted GPU run on main SHA before tagging"]
 
 v0.3.0:
-  status: NOT_STARTED
+  status: REVIEW_READY
+  pr: 5
+  branch: v0.3.0-kernel-optimization
   objective: genuine ROCm kernel optimization (tile the sparse read; kernelize tree beam; close nothing on correctness)
   tasks:
     - id: seed-study
-      summary: ">=3 seeds at strategic decode shapes (32k bf16): quantify seed sensitivity of the 2.1x flat / 3.9x block-sparse medians (L3 limitation)"
+      status: PASS
+      summary: "3 seeds x 3 fresh processes at 8k/16k/32k bf16 decode; v1-kernel study (evidence/seed-study-20261106T151843Z) + re-run on the tiled kernel (evidence/seed-study-20261106T155417Z); 2x9 receipts auditor-APPROVED (162 comparisons recomputed); honest bands published in BENCHMARKS.md (flat 32k decode 1.74x med / band 1.69-2.79 on v1; 1.89x med / 1.67-2.00 on tiled; the v0.2.1 2.1x was seed-favorable)"
     - id: profile
-      summary: "profile Ward build / top-k / expansion / sparse read / tree beam; clocks + kernel IDs; separate compile from warm dispatch"
+      status: PASS
+      summary: "stage waterfall + kernel IDs + cold/warm split (docs/OPTIMIZATION_v0.3.md a-e); sparse_read prefill 299ms=77% of flat step, single launch, gather-pattern bound; tree select 19,940 launches/iter; evidence/profile-32k-bf16-20261106/"
     - id: tiled-read
-      summary: "tiled multi-query sparse read (tl.dot), coalesced gathers; vs v0.2.1 kernel, no correctness regression"
+      status: PASS
+      summary: "row-tiled read (TM4/CN32 prefill, TM1/CN64 decode) = production path behind gate H (17 gates); 1.24/1.18/1.15x vs v1 at 8k/16k/32k prefill on identical inputs; step-level 32k prefill 0.19x->0.207x (audited receipts evidence/receipts-v0.3.0/); decode parity as designed; zero-length NaN hazard fixed"
     - id: kernelized-tree
-      summary: "replace python-composed tree beam with GPU kernels where feasible; batched decode B={1,2,4,8}"
-  acceptance_gates: ["no correctness regression", "matched-baseline speedups only", "3+ seeds / 3+ process reps on strategic shapes", "OPTIMIZATION doc + draft PR"]
+      status: DONE_NEGATIVE
+      summary: "page-batched torch beam (set-equal, gate C PASS) measured 0.81-0.87x per-page at 8k/32k prefill: launch tax is NOT the beam's cost; production keeps per-page walk, batched kept behind LSA_TREE_IMPL=batched + set-equality test; Triton per-level beam port deferred with measurement (docs/OPTIMIZATION_v0.3.md g)"
+  acceptance_gates:
+    - "PASS: 17/17 correctness gates (was 16; gate H added: tiled==v1 + zero-length)"
+    - "PASS: matched-baseline speedups only, auditor-APPROVED receipts (72+162 recomputed)"
+    - "PASS: 3+ seeds / 3+ process reps on strategic shapes (two studies)"
+    - "PASS: OPTIMIZATION doc + draft PR 5 updated"
+    - "PASS: independent adversarial review GO-WITH-FINDINGS; F1-F7 closed at 1e73c3a (docs/reviews/V0_3_INDEPENDENT_REVIEW.md)"
+    - "PASS (v0.3.1 at 60c004b): topk select swap (decode select 1.24x, equivalence-pinned); 11/11 receipts re-issued at the new code head, 181 tests, 17/17 gates"
 
 v0.4.0: {status: NOT_STARTED, objective: "context scaling 64k-256k+, covering-array matrix, crossover curves, UMA/GTT honesty"}
 v0.5.0: {status: NOT_STARTED, objective: "real model 0.5B-3B + model-bound indexer + RULER/NIAH quality gates (pre-registered)"}
