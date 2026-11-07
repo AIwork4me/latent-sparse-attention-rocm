@@ -1,36 +1,25 @@
 # CONTINUATION — exact resume point for the next session
 
-Updated: 2026-11-07 ~04:20 local (campaign `campaign-20261106T231500Z`, v0.3.0 complete)
-Branch: `v0.3.0-kernel-optimization` · head `25c7bbc` (docs-only on top of code head `1e73c3a`)
-PR: #5 (Draft, stacked behind PR #1 — do not merge before it) · PR #1: still Draft at `79412f8` (owner has NOT acted)
+Updated: 2026-11-07 (release-readiness pass on PR #5; v0.3.0 + v0.3.1 complete)
+Branch: `v0.3.0-kernel-optimization` · code head `0908842` (src = `60c004b` + a docstring-only T4 comment fix) · test-fix `5a13bf0` · docs-only commits above those
+PR: #5 (Draft, stacked behind PR #1 — do not merge before it; title/body now describe the implemented v0.3.0+v0.3.1, not the plan) · PR #1: still Draft at `79412f8` (owner has NOT acted)
 main: `5f2918e3` · upstream pin: `5ebea732` (== upstream main)
 
-## What just happened (verified, do not re-run)
+## SHA bookkeeping (explicit, per the mission contract)
 
-- **T1 seed study** (issue #2): 3 studies, 27 receipts total, all auditor-APPROVED.
-  Honest bands replace the v0.2.1 single-seed "2.1×" flat-decode headline.
-  Final (at `1e73c3a`): 32k flat 1.98× med (1.76–2.01), block-sparse 4.20×
-  (4.02–4.21), tree 0.95×. Dense baseline is seed-stable; the spread is
-  genuine sparse-path input sensitivity.
-- **T2 profiling**: `docs/OPTIMIZATION_v0.3.md` §a–e. sparse_read prefill =
-  299 ms = 77% of the flat step (single launch, gather-bound); tree select
-  19,940 launches/iter; select sort+copy ≈ 48% of the 95 ms prefill select.
-- **T3 tiled read (banked)**: `read_kernel_tiled.sparse_read_auto` is the
-  production path (TM4/CN32 prefill = 1.24/1.18/1.14× at 8k/16k/32k on
-  identical inputs; TM1/CN64 decode parity). New gate H (manifest now 17
-  gates; v0.2.1 16-gate receipts grandfathered). 32k prefill flat
-  0.19× → **0.211×**. Zero-length NaN hazard fixed + gated. B>1 row-mask bug
-  caught by the ragged-tile test.
-- **T4 tree beam (negative result)**: page-batched torch walk is set-equal
-  (after fixing a picked-validity bug the re-measure exposed) but 1.16–1.29×
-  slower prefill / 1.78–1.86× decode → launch tax is NOT the cost; production
-  keeps the per-page walk; batched stays behind `LSA_TREE_IMPL=batched`.
-  Artifact: `scripts/ab_tree_select.py` → `evidence/receipts-v0.3.0/ab-tree-select.json`.
-- **Independent adversarial review**: GO-WITH-FINDINGS; F1–F7 all closed at
-  `1e73c3a` with fresh 11/11 APPROVED receipts (153 comparisons). Disposition:
-  `docs/reviews/V0_3_INDEPENDENT_REVIEW.md`.
-- Tests 176 passed; gates 17/17 (both tree impls); security guard green;
-  pushed through `25c7bbc`.
+- **Production code SHA** (what receipts/gates describe): `60c004b` = v0.3.1 topk select. `0908842` = `60c004b` + `_tree.py` docstring correction ONLY — proven non-behavioral (gates 17/17 both impls re-run at that tree; 186 unit tests pass). Perf receipts stay pinned at `60c004b`; **no new performance measurement was claimed this session.**
+- **Test-only commit**: `5a13bf0` (tests/test_select_topk.py device portability; no src change).
+- **Doc-only commits**: everything else on the branch above `60c004b` (`849a80e`, `47e63f7`, `2f3002c`, and this session's docs).
+- **Eventual merged SHA**: NONE YET — merge condition remains a fresh 17/17 receipt at whatever SHA merges.
+
+## What just happened (verified this session; do not re-run without cause)
+
+- **GitHub CPU CI repaired**: runs 42260195840 / 42260187512 failed at `2f3002c` with exactly 5 failures in `tests/test_select_topk.py` (`Torch not compiled with CUDA enabled` — hardcoded `device="cuda"` on the CPU-only wheel). Fix `5a13bf0`: device-parametrized tests (`cpu` everywhere + visible ROCm device when present). No skip/xfail/relaxed assertions; tied-score, EMPTY, k==width, ragged, production-shape coverage all still execute. Green run: 42371335910 (and 42371339224). Local CPU-wheel venv reproduction: pre-fix 5 failed/130 passed/46 skipped (identical to CI), post-fix **135 passed / 46 skipped / 0 failed**. On gfx1151 the suite is now **186 passed** (was 181; each equivalence case runs cpu+cuda).
+- **Evidence verified, not re-measured**: v0.3.1 final receipts at `60c004b` — 11/11 auditor-APPROVED, 153 comparisons recomputed, 17/17 gates, upstream `5ebea732`, gfx1151. Indexed as **EV-2026-11-07-J** in docs/EVIDENCE_INDEX.md.
+- **`evidence/SHA256SUMS` repaired**: 2 of 71 lines had an erroneous `evidence/` path prefix (files exist, hashes matched) — prefixes fixed, hashes untouched; `cd evidence && sha256sum -c SHA256SUMS` now 71/71 OK. Historical evidence bytes immutable.
+- **Stale T4 commentary fixed**: `_tree.py` docstring said "0.81-0.87x the per-page walk" (superseded early number); corrected to the audited artifact (`evidence/receipts-v0.3.0/ab-tree-select.json`): batched 1.16–1.29× slower prefill / 1.78–1.86× slower decode.
+- **Gates re-verified at the reconciled tree**: 17/17 PASS, default AND `LSA_TREE_IMPL=batched`, on gfx1151 (this is a correctness re-run, not a new perf claim).
+- PR #5 title + Description rewritten to the implemented state (see the PR); still Draft.
 
 ## Awaiting owner (unchanged)
 
@@ -40,35 +29,40 @@ main: `5f2918e3` · upstream pin: `5ebea732` (== upstream main)
 
 ## ONE next most important action
 
-Start v0.3.1 on a branch off `v0.3.0-kernel-optimization` (or continue in PR
-#5 if the owner prefers): **fuse/retype the flat-select sort chain** — the
-measured #1 remaining lever (sort+copies ≈ 48% of the 95 ms prefill select;
-int32 keys instead of int64 radix sort, or a fused pack→sort→expand Triton
-pass). Alternatives in measured order: `docs/OPTIMIZATION_v0.3.md` §h.
-If the owner merges PR #1 first: retarget PR #5 per §13 of the mission doc.
+Owner review of PR #5 (title/body now describe the implemented work, positive
+AND negative results, tested configs, evidence links, limitations, merge
+conditions). Engineering next lever (only on owner go-ahead, measured order):
+fused pack→expand select pass — `docs/OPTIMIZATION_v0.3.md` §h. If the owner
+merges PR #1 first: retarget PR #5 per §13 of the mission doc.
 
 ## Resume commands
 
 ```bash
-cd ~/Desktop/lsa-rocm-eval-starter && git status --porcelain=v1 && git log --oneline -3
+cd ~/Desktop/lsa-rocm-eval-starter && git status --porcelain=v1 && git log --oneline -5
 gh pr view 1 --json state,isDraft,headRefOid   # has the owner acted?
 gh pr view 5 --json state,isDraft,headRefOid
-.venv/bin/python -m pytest tests/ -q           # baseline must stay 176 passed
+.venv/bin/python -m pytest tests/ -q           # baseline: 186 passed on gfx1151
 PYTHONPATH=src .venv/bin/python -m lsa_rocm_lab.port.gates | tail -1   # 17/17
 python3 scripts/check_workflow_security.py     # routing guard must stay green
-gh run list --limit 5                          # CI posture
+gh run list --limit 5                          # CPU CI posture (green at/above 5a13bf0)
+cd evidence && sha256sum -c SHA256SUMS | grep -cv ": OK$"   # must be 0
 ```
 
-## Risks / gotchas (fresh this session)
+## Risks / gotchas (carried + fresh)
 
 - Profiler-inflated "GPU totals" exceed unprofiled wall on this ROCm build —
-  attribute by kernel-table SHARES, cost by synchronized p50 (see
-  OPTIMIZATION_v0.3.md method note).
+  attribute by kernel-table SHARES, cost by synchronized p50.
 - `pkill -f <pattern>` matches your own heredoc's command line — kill by PID.
 - Full-batch tree einsum gathers are multi-GiB at 32k (UMA thrash) — chunked
   PAGE_CHUNK=4; any batched-tree work must re-run `scripts/ab_tree_select.py`.
-- An ad-hoc benchmark with warmup=3 measured tree decode ~2× the receipt
-  baseline; A/B scripts must use receipt methodology (warmup 5 / reps 20) and
-  gate equivalence before timing — the reviewer caught exactly this (F2).
-- Kill leftover GPU python from prior campaigns before benchmarking (this
-  session found one at 100% CPU for ~25 h contaminating UMA timings).
+- A/B scripts must use receipt methodology (warmup 5 / reps 20) and gate
+  equivalence before timing.
+- Kill leftover GPU python from prior campaigns before benchmarking.
+- NEW: tests that are device-independent contracts should parametrize
+  `["cpu"] + (["cuda"] if ROCm visible else [])` — never hardcode
+  `device="cuda"` in files without the `LSA_SKIP_GPU_TESTS` module guard; the
+  GitHub CPU wheel raises at allocation, not collection, so CI catches it
+  only at run time.
+- NEW: pip from download.pytorch.org can stall (0 B/s) for long stretches on
+  this host — the aliyun mirror is ~7× faster for generic packages; torch CPU
+  wheel must still come from the pytorch index.

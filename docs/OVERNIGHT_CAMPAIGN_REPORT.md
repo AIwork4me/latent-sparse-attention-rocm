@@ -51,3 +51,11 @@
 5. 证据入口:docs/EVIDENCE_INDEX.md(最新在最上)、docs/CONTINUATION.md(完整恢复点与本夜教训)
 
 **本夜未做任何合并、tag、发布或特权操作。所有性能声明可由 evidence/ 下 SHA256 校验的回执独立复算。**
+
+## F. 战役后修订(2026-11-07 发布就绪批次,原文以上保持不可变)
+
+- **SHA 台账明确化**:生产代码 SHA 为 `60c004b`(全部性能回执钉在此);`0908842` = `60c004b` + `_tree.py` 纯 docstring 修订(证明无行为变化:双路径 17/17 门 + 186 单测重验);`5a13bf0` = 仅测试可移植性修复;其余均为纯文档提交;**最终合并 SHA 仍未定**(合并条件:在该 SHA 重发 17/17 回执)。
+- **GitHub CPU CI 修复**:运行 42260195840 / 42260187512 在 `2f3002c` 失败——`tests/test_select_topk.py` 硬编码 `device="cuda"`,在 CPU-only torch 上分配即抛错,恰 5 例。`5a13bf0` 设备参数化(cpu 恒跑 + ROCm 可见时加跑);无 skip/xfail/放宽断言;并列分数、EMPTY、k==width、参差行、生产形状覆盖全部保留。本地 CPU-wheel venv 完整复现(修前 5 failed/130 passed/46 skipped 与 CI 一致;修后 **135 passed / 46 skipped / 0 failed**);GitHub 绿:运行 42371335910 / 42371339224。gfx1151 上套件 181 → **186**(每用例 cpu+cuda 双跑)。
+- **本会话未做任何新性能测量**:v0.3.1 回执核验为 11/11 APPROVED、153 比较独立重算(索引 EV-2026-11-07-J);`evidence/SHA256SUMS` 修复 2 行错误路径前缀(哈希未动)后 **71/71 OK**,历史证据字节不变。
+- **T4 注释纠正**:`_tree.py` docstring 曾写"0.81-0.87x"(早期被否决的测量),已按审计工件 `evidence/receipts-v0.3.0/ab-tree-select.json` 更正为批处理 1.16–1.29×/1.78–1.86× 更慢。
+- PR #5 标题与描述已改写为实现态(正/负结果、测试配置、证据链接、已知限制、owner 合并条件);仍为 Draft。§E 的恢复指令以 docs/CONTINUATION.md(2026-11-07 版)为准。
