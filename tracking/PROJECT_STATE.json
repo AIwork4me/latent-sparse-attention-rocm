@@ -1,49 +1,38 @@
 {
   "schema_version": 1,
-  "updated_utc": "2026-11-07T12:12:00Z",
-  "current_milestone": "v0.3.0",
-  "milestone_status": "REVIEW_READY (v0.3.0 + v0.3.1 topk-select; adversarial review GO, findings closed; final evidence at 60c004b: 11/11 APPROVED; release-readiness defects closed 2026-11-07: CPU CI test portability fixed, docs reconciled; owner review pending)",
+  "updated_utc": "2026-11-07T14:35:00Z",
+  "current_milestone": "v0.3.1",
+  "milestone_status": "RELEASED (2026-11-07: PR #1 merged 7b0b06f -> tag v0.2.1 published; PR #5 merged 958d948 -> version bump 0f1abeb -> tag v0.3.1 published; all merged-tree gates green; owner approved the chain)",
   "last_verified": {
-    "main_sha": "5f2918e3fd3441d81b07ed8e9b8c8c47ae5689cb",
-    "pr1_head_sha": "79412f8a8b4fcb09f09f4a41b6eb07d075dbe3b1",
-    "pr5_code_head_sha": "0908842 (src: 60c004b + docstring-only T4 comment fix, proven non-behavioral; gates re-verified 17/17 both impls)",
-    "pr5_test_fix_sha": "5a13bf0 (tests/test_select_topk.py device portability; GitHub CPU CI run 42371335910 SUCCESS: 135 passed / 46 skipped / 0 failed)",
-    "pr5_head_note": "doc-only commits sit above 0908842 on the branch; distinguish code SHA (0908842) from doc commits; eventual merged SHA still TBD (fresh 17/17 receipt is the merge condition)",
+    "main_sha": "9a8b87a (v0.3.1 release chain complete; 0f1abeb = version bump, tagged v0.3.1)",
+    "pr1": "MERGED (merge 7b0b06f; head c12e8b5 = 79412f8 + Option-A hygiene)",
+    "pr5": "MERGED (merge 958d948; branch head 99902d7 = c7661c2 + merge of main)",
+    "releases": "v0.2.1 -> 7b0b06f (published 14:17:36Z); v0.3.1 -> 0f1abeb (published 14:26:43Z, Latest)",
+    "merged_tree_gates": "17/17 default AND batched at 958d948 on gfx1151; CPU CI 141/46/0; 192 gfx1151 tests; evidence 71/71; recompute 153/153",
+    "repo_controls": "gpu-regression env required_reviewers=AIwork4me; sha_pinning_required=true; guard hardened (allowlist+R6+pinned-source); rocm-regression re-enabled, runner still OFFLINE",
     "upstream_sha": "5ebea732d639576d2a7579b0de40e6252f9001f5",
     "upstream_equals_reviewed_pin": true,
-    "gates": "17/17 PASS on gfx1151 (receipts at 1e73c3a/60c004b; re-verified 2026-11-07 at the 0908842 tree, default AND LSA_TREE_IMPL=batched)",
-    "unit_tests": "186 passed at 0908842 on gfx1151 (was 181 at 60c004b; +5 cpu-device params of the topk equivalence tests); GitHub-hosted CPU CI green: 135 passed / 46 GPU tests skipped loudly",
-    "receipt_audit": "11/11 APPROVED at 60c004b (153 recomputed); cumulative v0.3.x counting rule: 42 unique audited receipts = 6 matrix (2 each at 4988672/1e73c3a/60c004b) + 36 seed-study (4 studies x 9), plus 2 A/B artifacts; no new performance measurement claimed since",
-    "evidence_integrity": "evidence/SHA256SUMS 71/71 OK after repairing 2 erroneous path prefixes (hashes untouched, historical evidence immutable)",
-    "cpu_ci": "green at 5a13bf0+ (runs 42371335910 push / 42371339224 pull_request); prior failures 42260195840/42260187512 fixed, nothing hidden - all portable topk equivalence cases execute on CPU",
-    "headline": "32k bf16 at 60c004b: prefill flat 0.210x; decode flat 1.94x med (1.85-2.06), block-sparse 4.29x (4.24-4.38), tree 0.93x; decode select stage 1.24x (topk)"
+    "headline": "32k bf16: prefill flat 0.210x; decode flat 1.94x (1.85-2.06), block-sparse 4.29x (4.24-4.38), tree 0.93x; decode select stage receipt-backed 1.13x (topk)"
   },
   "blockers": [
     {
-      "id": "OWNER-APPROVAL-PR1",
-      "kind": "approval",
-      "summary": "PR #1 (v0.2.1) is Draft and review-ready; merge + tag only on owner approval",
-      "owner": "repo owner",
-      "opened": "2026-11-06"
-    },
-    {
-      "id": "OWNER-REVIEW-PR5",
-      "kind": "approval",
-      "summary": "PR #5 (v0.3.0+v0.3.1) review-ready since 2026-11-07; title/body describe implemented work; fresh 17/17 receipt at the eventual merge SHA is the merge condition",
+      "id": "RUNNER-MIGRATION",
+      "kind": "owner-action",
+      "summary": "Execute R1_RUNNER_SECURITY 2.1 migration at the console (sudo; lsa-runner user + /opt install + hardened systemd + venv copy + one-line workflow path PR), then rotate the amd gh credential. Until then the runner stays OFFLINE and GitHub GPU dispatch stays unused (env approval already gates it).",
       "owner": "repo owner",
       "opened": "2026-11-07"
     },
     {
-      "id": "RUNNER-HARDENING",
+      "id": "EXTERNAL-CONTRIBUTOR-APPROVAL-TOGGLE",
       "kind": "owner-action",
-      "summary": "Move runner out of interactive amd user / rotate gh credential / add gpu-regression environment reviewers (docs/SECURITY_RUNNER_POLICY.md \u00a74)",
+      "summary": "UI-only: Settings -> Actions -> require approval for all external contributors (runner groups do not exist on user-owned repos; A1/A2/guard already applied)",
       "owner": "repo owner",
-      "opened": "2026-11-06"
+      "opened": "2026-11-07"
     },
     {
       "id": "SGLANG-E2E",
       "kind": "external",
-      "summary": "SGLang AMD path is MI-class; gfx1151 image lane (ROCm 7.2.4) is a separate feasibility lane for v0.6.0",
+      "summary": "SGLang AMD path is MI-class; gfx1151 image lane (ROCm 7.2.4) is the v0.6.0 feasibility lane",
       "owner": "engineering",
       "opened": "before v0.2.1"
     }
@@ -58,5 +47,5 @@
     "Tag v0.2.1",
     "Any external upstream PR or paid cloud spend"
   ],
-  "next_action": "Owner: review PR #1 (unchanged) and PR #5 (rewritten to implemented state 2026-11-07); fresh receipt at the eventual merge SHA is a merge condition. v0.3.1+ attack order measured: fused pack->expand select pass, Triton beam port, decode select fusion (docs/OPTIMIZATION_v0.3.md h). No new kernel optimization started."
+  "next_action": "Owner console actions: A3 runner migration + credential rotation (paste-ready in docs/release-closure/R1_RUNNER_SECURITY.md 2.1; rollback 2.3), optional external-contributor toggle. Engineering: v0.4.0+ levers in measured order (docs/OPTIMIZATION_v0.3.md h) - only on owner go-ahead."
 }
