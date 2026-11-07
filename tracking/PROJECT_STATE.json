@@ -13,7 +13,7 @@
     "upstream_equals_reviewed_pin": true,
     "gates": "17/17 PASS on gfx1151 (receipts at 1e73c3a/60c004b; re-verified 2026-11-07 at the 0908842 tree, default AND LSA_TREE_IMPL=batched)",
     "unit_tests": "186 passed at 0908842 on gfx1151 (was 181 at 60c004b; +5 cpu-device params of the topk equivalence tests); GitHub-hosted CPU CI green: 135 passed / 46 GPU tests skipped loudly",
-    "receipt_audit": "11/11 APPROVED at 60c004b (153 recomputed); cumulative v0.3.x: 38 receipts, 4 studies; no new performance measurement claimed since",
+    "receipt_audit": "11/11 APPROVED at 60c004b (153 recomputed); cumulative v0.3.x counting rule: 42 unique audited receipts = 6 matrix (2 each at 4988672/1e73c3a/60c004b) + 36 seed-study (4 studies x 9), plus 2 A/B artifacts; no new performance measurement claimed since",
     "evidence_integrity": "evidence/SHA256SUMS 71/71 OK after repairing 2 erroneous path prefixes (hashes untouched, historical evidence immutable)",
     "cpu_ci": "green at 5a13bf0+ (runs 42371335910 push / 42371339224 pull_request); prior failures 42260195840/42260187512 fixed, nothing hidden - all portable topk equivalence cases execute on CPU",
     "headline": "32k bf16 at 60c004b: prefill flat 0.210x; decode flat 1.94x med (1.85-2.06), block-sparse 4.29x (4.24-4.38), tree 0.93x; decode select stage 1.24x (topk)"

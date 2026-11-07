@@ -28,7 +28,8 @@ The two sibling runners are **out of scope** for any R1 action; they must remain
 | Control (mission §2.3) | Observed | Status |
 |---|---|---|
 | CPU CI only for untrusted PRs | `cpu-pr.yml` is the only `pull_request` workflow; GitHub-hosted, `contents: read`, zero secrets, `LSA_SKIP_GPU_TESTS=1` | ✅ PASS |
-| No untrusted PR → self-hosted | guard R1/R3 + workflow shapes; rocm-regression triggers only `push:main` + `workflow_dispatch` w/ ref-confirmation | ✅ PASS |
+| No untrusted PR → self-hosted | **initially "✅ PASS" — falsified by the adversarial review (finding F1): the guard only matched the literal `self-hosted` label, so custom label sets (`[linux, rocm, gfx1151]`), `${{ matrix.runner }}` expressions and `workflow_call` composition bypassed it (all reproduced). FIXED in the R1 adversarial-fixes commit: hosted-label allowlist (only `ubuntu-*`/`macos-*`/`windows-*` are hosted; everything else, incl. expressions and unknown labels, is treated as persistent-host), new rule R6 (workflow_call + non-hosted jobs requires a reviewed allowlist marker), R5 extended to workflow-level `env:`/`defaults:` (finding F2); guard now catches every reproduced bypass (16/16 unit tests incl. 6 new attack fixtures)**; real workflows still pass | ⚠️→✅ FIXED (code); **runner-group scoping remains an owner action (§3 item 6)** |
+| Guard integrity in fork PRs | **finding F3: the guard ran from the PR's own checkout, so a fork PR could neuter it in the same PR. FIXED: `cpu-pr.yml` now re-runs the guard from `origin/main` (reviewed copy) against the PR's workflows** | ⚠️→✅ FIXED |
 | `pull_request_target` prohibited | guard R2; none present | ✅ PASS |
 | SHA-pinned actions | all `uses:` pinned to 40-hex SHAs (checkout/setup-python/upload-artifact) | ✅ PASS (files) |
 | Repo-wide SHA-pin enforcement | `sha_pinning_required: false`, `allowed_actions: all` | ⚠️ GAP (owner setting) |
@@ -145,5 +146,6 @@ Post-migration owner step (separate approval, policy §4 item 4): rotate the `am
 | 3 | Approve + execute §2.1 migration | sudo on host (owner-run) | medium (host change; reversible per §2.3; siblings untouched) | §2.3 |
 | 4 | After 3: rotate gh credential | `gh auth logout` on `amd` | low after 3 | re-auth |
 | 5 | (optional) "Require approval for all external contributors" + `allowed_actions: selected` | Settings → Actions | low | revert setting |
+| 6 | **Scope the runner group** (adversarial F1 residual): runner settings → group of `lsa-rocm-gfx1151` → "Selected repositories" = this repo only; require approval for external contributors | org/repo runner settings UI | low | revert group scope |
 
-Until items 1–3 land: **RUNNER HARDENING BLOCKED stands** — no GitHub-dispatched GPU jobs; trusted local execution only, as used throughout R1.
+Until items 1–3 land (and given the F1 history, item 6 is strongly advised before the runner ever comes online): **RUNNER HARDENING BLOCKED stands** — no GitHub-dispatched GPU jobs; trusted local execution only, as used throughout R1.

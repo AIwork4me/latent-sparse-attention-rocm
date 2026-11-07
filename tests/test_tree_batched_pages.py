@@ -1,7 +1,8 @@
 """The experimental page-batched tree walk (v0.3.0/T4) stays set-equal to production.
 
-The batched walk is not the default (it measured 0.81-0.87x the per-page walk -
-launch savings lost to batch-max widths), but it is kept behind
+The batched walk is not the default (it measured 1.16-1.86x the per-page walk's
+time - slower - in the audited A/B evidence/receipts-v0.3.0/ab-tree-select.json;
+launch savings lost to batch-max widths and extra copies), but it is kept behind
 ``LSA_TREE_IMPL=batched`` as evidence and a base for a future Triton beam. This
 test holds it to gate C's bar - selection-set equality with the per-page walk -
 so it cannot silently rot or drift away from the reference semantics.

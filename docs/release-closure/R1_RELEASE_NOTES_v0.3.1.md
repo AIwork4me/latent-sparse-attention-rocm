@@ -11,7 +11,7 @@ v0.2.1's 16 gates plus **gate H** (tiled production read == v1 kernel + zero-len
 ## Improvements (measured, multi-seed where variance matters)
 
 - **Tiled sparse read (v0.3.0/T3, production path)**: row-tiled Triton kernel; prefill-stage 1.14–1.24× over v1 across 8k–32k on identical inputs; 32k prefill flat 0.19× → **0.210×** vs dense. Zero-length NaN hazard fixed and gated; B>1 row-mask bug found by the ragged-tile test before release.
-- **Top-k selection (v0.3.1)**: `best_first_keys` replaces the select's full-width sort + strided slice (~19% of prefill-select profile) — packed keys are column-unique so `topk(sorted=True)` ≡ `sort()[:, :k]`; equivalence pinned by CPU+GPU tests (tied scores, EMPTY keys, k==width, ragged rows, production shapes). **Decode select stage 1.24× (0.266→0.214 ms)**; prefill neutral.
+- **Top-k selection (v0.3.1)**: `best_first_keys` replaces the select's full-width sort + strided slice (~19% of prefill-select profile) — packed keys are column-unique so `topk(sorted=True)` ≡ `sort()[:, :k]`; equivalence pinned by CPU+GPU tests (tied scores, EMPTY keys, k==width, ragged rows, production shapes). **Receipt-backed: 32k bf16 decode select stage 0.528→0.466 ms (1.13×) across the final receipts** (independent runs, same methodology); an identical-input in-process A/B during development measured 1.24× (0.266→0.214 ms) — development measurement, artifact not retained, superseded here by the receipt-backed figure; prefill neutral.
 - **Multi-seed honesty (v0.3.0/T1)**: flat-decode "2.1×" shown to be seed luck; headline is now the band.
 
 ## Headline @ 32k ctx bf16 (decode select+read vs dense; cross-seed bands, 9 receipts/study)
@@ -51,6 +51,7 @@ Hardware/software: AMD Ryzen AI MAX+ PRO 395 / Radeon 8060S (gfx1151), 32 GiB UM
 
 ## Source & evidence provenance (filled at tag time)
 
-- PR #5 head: `261805c98c41230c2bfc32533a78873857058fdf` (code `0908842` = `60c004b` + docstring-only; test fix `5a13bf0`) · merge commit: `<RECORD AT MERGE>` · tree: `<RECORD>`
-- Receipts: `evidence/receipts-v0.3.1-final/` (bf16 `20261106T171009Z-adapter`, fp16 `20261106T171202Z-adapter`) + `evidence/seed-study-20261106T171352Z/` (9) — audit `audit-v031.json` 11/11 APPROVED, 153/153 recomputed; cumulative v0.3.x: 38 receipts, 4 studies
+- PR #5 head at R1 audit: `261805c98c41230c2bfc32533a78873857058fdf`; the branch head is now above it (R1 audit + adversarial-review fixes) — **the tag must point at the branch head at merge time, recorded here then** · code `0908842` = `60c004b` + docstring-only; test fix `5a13bf0` · merge commit: `<RECORD AT MERGE>` · tree: `<RECORD>`
+- Receipts: `evidence/receipts-v0.3.1-final/` (bf16 `20261106T171009Z-adapter`, fp16 `20261106T171202Z-adapter`) + `evidence/seed-study-20261106T171352Z/` (9) — audit `audit-v031.json` 11/11 APPROVED, 153/153 recomputed. Counting rule for cumulative v0.3.x: **42 unique audited receipts = 6 matrix (v0.3.0@`4988672` ×2, v0.3.0-final@`1e73c3a` ×2, v0.3.1@`60c004b` ×2) + 36 seed-study (4 studies × 9)**, plus 2 correctness-gated A/B artifacts (not receipts).
+- Pre-tag hygiene gate (owner checklist A8): `pyproject.toml` version bump to `0.3.1` (currently `0.2.0`) and `CHANGELOG.md` `[0.3.0]`/`[0.3.1]` entries (added by R1; verify present).
 - Post-merge fresh gate receipt at the merged SHA: `<RECORD — hard release gate §7>`

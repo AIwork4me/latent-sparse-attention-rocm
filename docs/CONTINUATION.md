@@ -63,6 +63,18 @@ cd evidence && sha256sum -c SHA256SUMS | grep -cv ": OK$"   # must be 0
   `device="cuda"` in files without the `LSA_SKIP_GPU_TESTS` module guard; the
   GitHub CPU wheel raises at allocation, not collection, so CI catches it
   only at run time.
+- NEW (R1 adversarial F10): device-parametrized tests' `cuda` params vanish
+  SILENTLY (no skip marker) when the GPU is invisible at collection time on a
+  GPU host - acceptable for equivalence contracts (cpu params always run), but
+  do not expect a loud skip; `LSA_SKIP_GPU_TESTS=1` does not gate that file,
+  so cuda params still execute on a GPU host under that env var.
+- NEW (R1 adversarial F1/F2/F3): the workflow-security guard now uses a
+  hosted-label ALLOWLIST (ubuntu/macos/windows globs; everything else incl.
+  `${{ }}` expressions and custom label sets counts as persistent-host), R6
+  rejects `workflow_call`+non-hosted without the reviewed marker, R5 scans
+  workflow-level env/defaults, and cpu-pr.yml re-runs the guard from
+  origin/main so fork PRs cannot neuter it. Keep those semantics if touching
+  the guard; extend the fixtures in tests/test_workflow_security.py.
 - NEW: pip from download.pytorch.org can stall (0 B/s) for long stretches on
   this host — the aliyun mirror is ~7× faster for generic packages; torch CPU
   wheel must still come from the pytorch index.

@@ -183,7 +183,11 @@ measurement as its justification.
    select's full-width int64 sort + strided slice with `torch.topk` — provably
    identical on upstream's unique packed keys (5 equivalence tests). Measured
    in-process on identical 32k inputs: **decode select 0.266 → 0.214 ms
-   (1.24×)**, prefill neutral (0.99×) — the radix sort was already efficient at
+   (1.24×)**, prefill neutral (0.99×). [R1 provenance note: that A/B was a
+   development measurement whose artifact was not retained; the receipt-backed
+   figure is decode select 0.528 → 0.466 ms (1.13×) across the final
+   receipts (v0.3.0-final vs v0.3.1-final, independent runs, same
+   methodology).] The radix sort was already efficient at
    [32768, 4096]; what remains of this lever is a fused pack→expand Triton pass
    (the copies, not the ordering).
 2. The Triton beam port above.

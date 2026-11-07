@@ -31,7 +31,7 @@ Post-merge (immediately, record everything):
 1. `MAIN_SHA=$(git rev-parse origin/main)` — the actual merge commit; verify `git merge-base --is-ancestor 79412f8 $MAIN_SHA`.
 2. Fresh tree checks on `$MAIN_SHA`: `git worktree add --detach ~/wt-postmerge1 $MAIN_SHA` → CPU CI suite (expect 117 passed/16 skipped), static guard, **GPU 16-gate manifest run on gfx1151 (trusted local path) → must be 16/16**, full pytest on GPU host.
 3. Receipt provenance: this is a NEW execution at `$MAIN_SHA` — label run id `r1-postmerge1-<ts>Z`, record tree SHA (`git rev-parse $MAIN_SHA^{tree}`), ROCm/torch/triton versions, upstream sha. **Historical `60c004b`/`82c891e` receipts stay pinned to their SHAs and are never relabeled.**
-4. If (and only if) all green: v0.2.1 release notes + provenance + checksums from R1_RELEASE_NOTES_v0.2.1.md; tag step is A5.
+4. If (and only if) all green: v0.2.1 release notes + provenance + checksums from R1_RELEASE_NOTES_v0.2.1.md; **pre-tag hygiene: `pyproject.toml` version `0.2.0`→`0.2.1` must land before the tag** (PR1-review F13 — via Option A pre-merge or a post-merge commit on main); tag step is A5.
 
 Tag/Release (A5 — separate explicit approval): `git tag -a v0.2.1 -m "…" $MAIN_SHA && git push origin v0.2.1` then `gh release create v0.2.1 --draft --notes-file docs/release-closure/R1_RELEASE_NOTES_v0.2.1.md` (**draft first**; publish is another owner click). Rollback: `git push origin :refs/tags/v0.2.1 && git tag -d v0.2.1`; `gh release delete v0.2.1`.
 
@@ -48,7 +48,7 @@ At the actual post-merge main SHA `$M` (record commit + tree SHA + full env iden
 
 ## 4. Controlled merge of PR #5 + v0.3.1 release (A7/A8)
 
-Pre-flight: PR #5 HEAD == owner-named SHA (expect `261805c9…` or its post-retarget successor), base=main, CI green, reviewDecision approved by owner, no unresolved CRITICAL/HIGH finding from R1 adversarial review. Execute `gh pr merge 5 --merge`; capture merge SHA; run §3; then tag `v0.3.1` (annotated) + **draft** GitHub Release from R1_RELEASE_NOTES_v0.3.1.md (publish = separate owner click). v0.3.1 is the single release for this PR (it contains v0.3.0 + v0.3.1 work); no separate v0.3.0 tag. Rollbacks: revert merge commit; delete tag/release before publish.
+Pre-flight: PR #5 HEAD == owner-named SHA (expect the current branch head — `c9a792b` plus the R1 adversarial-fixes commits, not the audit-time `261805c9…`), base=main, CI green, reviewDecision approved by owner, no unresolved CRITICAL/HIGH finding from R1 adversarial review. **Pre-tag hygiene gate (A8)**: `pyproject.toml` version → `0.3.1` (currently `0.2.0`) and `CHANGELOG.md` `[0.3.0]`/`[0.3.1]` entries present (entries added by R1; the version bump is a one-line owner-approved commit before the tag). Execute `gh pr merge 5 --merge`; capture merge SHA; run §3; then tag `v0.3.1` (annotated) + **draft** GitHub Release from R1_RELEASE_NOTES_v0.3.1.md (publish = separate owner click). v0.3.1 is the single release for this PR (it contains v0.3.0 + v0.3.1 work); no separate v0.3.0 tag. Rollbacks: revert merge commit; delete tag/release before publish.
 
 ## 5. What R1 deliberately does NOT do without new authorization
 

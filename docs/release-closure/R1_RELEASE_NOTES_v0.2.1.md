@@ -31,7 +31,10 @@ Gates A, A2, B1, B2, C, D1/D2 (fp32/fp16/bf16), E, F, G (fp32/fp16/bf16) — buc
 bash scripts/checkout_upstream.sh                 # pin 5ebea732 (UPSTREAM_BASELINE.json)
 PYTHONPATH=src python -m lsa_rocm_lab.port.gates  # 16/16 on gfx1151
 python -m pytest tests/ -v                        # full suite (GPU host)
-python3 -I scripts/r1_verify_receipts.py . evidence/audit-v0.2.1.json --expect-gates 16
+# Receipt recompute: the R1 verifier (scripts/r1_verify_receipts.py) lives on the
+# v0.3.x branch (PR #5, docs/release-closure/), NOT in this v0.2.1 tree - run it
+# from a checkout of that branch, or recompute by hand: speedup == baseline_ms /
+# candidate_ms for every comparison in the receipts below (1e-9 tolerance).
 ```
 
 ## Source & evidence provenance (filled at tag time)
