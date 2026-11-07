@@ -36,6 +36,14 @@ jobs:
         run: |
           python -m pip install --quiet pyyaml
           python scripts/check_workflow_security.py
+      - name: "Guard source pin: re-run the security check from origin/main (a fork PR cannot neuter it)"
+        run: |
+          # The check above runs from the PR's own checkout; a fork PR could
+          # weaken the guard script in the same PR that adds an unsafe
+          # workflow. This step re-runs the guard from the reviewed main copy.
+          git fetch --quiet origin main
+          git show origin/main:scripts/check_workflow_security.py > /tmp/guard_main.py
+          python /tmp/guard_main.py "$GITHUB_WORKSPACE/.github/workflows"
       - name: Install CPU-only test dependencies
         run: |
           python -m pip install --quiet --upgrade pip
