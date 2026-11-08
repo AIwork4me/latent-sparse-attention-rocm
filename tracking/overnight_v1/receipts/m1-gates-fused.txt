@@ -1,0 +1,17 @@
+{"gate_id": "A", "gate": "A bucket build (Triton Ward vs torch oracle)", "rows": 64, "partition_equal": true, "first_mismatch_row": -1, "centroid_max_abs_err": 5.960464477539063e-08, "status": "PASS"}
+{"levels": 1, "gate_id": "A2", "gate": "A2 hierarchy pairing (Triton vs torch, same device)", "status": "PASS"}
+{"gate_id": "B1", "gate": "B1 flat select exact (fp32 scoring)", "rows": 512, "rows_set_equal": 512, "rows_set_equal_frac": 1.0, "recall_mean": 1.0, "recall_min": 1.0, "precision_mean": 1.0, "status": "PASS"}
+{"gate_id": "B2", "gate": "B2 flat select recall (bf16 production scoring; mean >= 0.999)", "rows": 512, "rows_set_equal": 510, "rows_set_equal_frac": 0.99609375, "recall_mean": 0.9999103156887755, "recall_min": 0.9591836734693877, "precision_mean": 0.9999103156887755, "status": "PASS"}
+{"gate_id": "C", "gate": "C tree select exact (port beam vs reference walk, same tree)", "rows": 512, "rows_set_equal": 512, "rows_set_equal_frac": 1.0, "recall_mean": 1.0, "recall_min": 1.0, "precision_mean": 1.0, "status": "PASS"}
+{"gate_id": "D1:fp32", "gate": "D1 sparse read vs quadratic oracle (torch.float32)", "max_abs_error": 4.0978193283081055e-08, "atol": 0.0001, "status": "PASS"}
+{"gate_id": "D2:fp32", "gate": "D2 full select == dense SDPA (torch.float32)", "max_abs_vs_sdpa": 3.725290298461914e-08, "max_abs_vs_quadratic_oracle": 3.725290298461914e-08, "atol": 0.0001, "status": "PASS"}
+{"gate_id": "D1:fp16", "gate": "D1 sparse read vs quadratic oracle (torch.float16)", "max_abs_error": 1.52587890625e-05, "atol": 0.005, "status": "PASS"}
+{"gate_id": "D2:fp16", "gate": "D2 full select == dense SDPA (torch.float16)", "max_abs_vs_sdpa": 0.000244140625, "max_abs_vs_quadratic_oracle": 1.52587890625e-05, "atol": 0.005, "status": "PASS"}
+{"gate_id": "D1:bf16", "gate": "D1 sparse read vs quadratic oracle (torch.bfloat16)", "max_abs_error": 0.00048828125, "atol": 0.02, "status": "PASS"}
+{"gate_id": "D2:bf16", "gate": "D2 full select == dense SDPA (torch.bfloat16)", "max_abs_vs_sdpa": 0.001953125, "max_abs_vs_quadratic_oracle": 0.00048828125, "atol": 0.02, "status": "PASS"}
+{"gate_id": "E", "gate": "E decode step == whole prefill row", "selection_equal": true, "max_abs_error": 5.587935447692871e-09, "status": "PASS"}
+{"gate_id": "F", "gate": "F GQA D1 sparse read vs quadratic oracle (torch.bfloat16)", "max_abs_error": 0.000244140625, "atol": 0.02, "status": "PASS"}
+{"gate_id": "G:fp32", "gate": "G dense decode/chunk == prefill tail (torch.float32)", "decode_max_abs_error": 1.6763806343078613e-08, "chunk_rows": 16, "chunk_max_abs_error": 2.421438694000244e-08, "atol": 0.0001, "status": "PASS"}
+{"gate_id": "G:fp16", "gate": "G dense decode/chunk == prefill tail (torch.float16)", "decode_max_abs_error": 1.52587890625e-05, "chunk_rows": 16, "chunk_max_abs_error": 1.52587890625e-05, "atol": 0.005, "status": "PASS"}
+{"gate_id": "G:bf16", "gate": "G dense decode/chunk == prefill tail (torch.bfloat16)", "decode_max_abs_error": 0.0001220703125, "chunk_rows": 16, "chunk_max_abs_error": 0.0001220703125, "atol": 0.02, "status": "PASS"}
+{"gate_id": "H", "gate": "H tiled read == v1 kernel (+ zero-length contract)", "max_abs_error": 0.00048828125, "zero_length_output_zero": true, "status": "PASS"}

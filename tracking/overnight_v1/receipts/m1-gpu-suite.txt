@@ -1,0 +1,12 @@
+........................................................................ [ 22%]
+........................................................................ [ 45%]
+........................................................................ [ 68%]
+........................................................................ [ 91%]
+..........................                                               [100%]
+=============================== warnings summary ===============================
+tests/test_select_wide_adversarial.py::test_wide_context_flat_select_byte_exact[fused-cuda]
+  /home/amd/lsa-v1-overnight/src/lsa_rocm_lab/port/pipeline.py:305: UserWarning: select_topk_scores: 8192 columns > 4 * top_p 1024 - sampled listing contract, using the length-respecting pack+topk (upstream TopK.best() semantics)
+    picks = select_fused.select_topk_scores(scores, counts, config.top_p)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+314 passed, 1 warning in 8.04s

@@ -35,11 +35,11 @@
     "start_point_verified": "PASS",
     "evidence_v040_manifest": "PASS 28/28 (sha256sum -c SHA256SUMS from evidence/v0.4.0)",
     "ledger_initialized": "PASS",
-    "gate_commands_verified": "RUNNING"
+    "gate_commands_verified": "PASS (pytest 314/314 GPU; gates 17/17 x3; workflow guard PASS)"
   },
   "workstreams": {
-    "M1_merged_tree_gpu_qualification": "RUNNING",
-    "M2_long_context_scaling_64k_256k": "NOT_STARTED",
+    "M1_merged_tree_gpu_qualification": "PASS - suite 314/314 GPU; 17/17 gates x3; evidence 28/28; aggregate 60/60 recomputed; single-run A/B 16k/32k PASS (receipt 9b2026b2); GO/NO-GO memo written (engineering GO, release owner-gated)",
+    "M2_long_context_scaling_64k_256k": "RUNNING",
     "M3_true_model_quality": "NOT_STARTED",
     "M4_sglang_feasibility": "NOT_STARTED",
     "M5_e2e_serving_optimization": "NOT_STARTED",
