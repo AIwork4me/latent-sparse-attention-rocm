@@ -78,3 +78,16 @@ def test_v040_final_sha_confirmation_stays_explicit():
     assert receipt["summary"]["rows_failed"] == 0
     assert receipt["summary"]["rows_pass"] == receipt["summary"]["rows_total"]
     assert receipt["summary"]["rows_total"] >= 3
+
+def test_v040_package_and_release_metadata_are_rc_scoped():
+    import tomllib
+
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    assert project["project"]["version"] == "0.4.0"
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    assert "## [0.4.0] — UNRELEASED" in changelog
+    notes = (ROOT / "docs" / "v0.4.0" / "RELEASE_NOTES_RC.md").read_text(
+        encoding="utf-8"
+    )
+    assert "RELEASE CANDIDATE — UNRELEASED" in notes
+    assert "default remains" in notes.lower() or "default:" in notes.lower()
