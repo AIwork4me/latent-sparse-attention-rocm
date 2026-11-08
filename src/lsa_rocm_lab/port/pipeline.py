@@ -14,6 +14,7 @@ project's, also Apache-2.0.
 """
 
 from dataclasses import dataclass, field
+import os
 
 import torch
 import torch.nn.functional as F
@@ -200,21 +201,8 @@ def best_first_keys(keys: torch.Tensor, top_p: int) -> torch.Tensor:
     return torch.topk(keys, k=k, dim=1, sorted=True).values
 
 
-def flat_select(
-    index_queries: torch.Tensor,
-    positions: torch.Tensor,
-    buckets: Buckets,
-    config: PortConfig,
-    top_k: int | None = None,
-    score_dtype: str = "bf16",
-) -> tuple[torch.Tensor, torch.Tensor]:
-    """Select each query's keys - the production short/medium-context composition.
-
-    The bf16 centroid GEMM with fp32 out (as the served path), upstream's Triton
-    top-k listing, a sort of the packed keys to best-first order (their int64 layout
-    is order-preserving), and upstream's Triton rank-order expansion.
-    """
-    top_k = config.top_k if top_k is None else top_k
+def _production_scores(index_queries, positions, buckets, config, score_dtype):
+    """The production scoring both select implementations share, verbatim."""
     if positions.shape[0] != index_queries.shape[0]:
         raise ValueError(
             f"a position a query: {index_queries.shape[0]} queries, {positions.shape[0]} positions"
@@ -228,12 +216,78 @@ def flat_select(
         # fp32 straight out of the GEMM, as the served path asks (a bf16 product cast
         # after costs five times as much, per upstream)
         scores = torch.mm(queries, buckets.centroids.t(), out_dtype=torch.float32)
+    return scores, counts
+
+
+def flat_select_reference(
+    index_queries: torch.Tensor,
+    positions: torch.Tensor,
+    buckets: Buckets,
+    config: PortConfig,
+    top_k: int | None = None,
+    score_dtype: str = "bf16",
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """The v0.3.1 production select - the immutable A/B oracle for v0.4.0 fusion.
+
+    The bf16 centroid GEMM with fp32 out (as the served path), upstream's Triton
+    top-k listing, a sort of the packed keys to best-first order (their int64 layout
+    is order-preserving), and upstream's Triton rank-order expansion. Byte-for-byte
+    what every v0.2.1/v0.3.1 receipt measured; the fused candidates in
+    ``select_fused`` must reproduce its output exactly or fail their gates.
+    """
+    top_k = config.top_k if top_k is None else top_k
+    scores, counts = _production_scores(index_queries, positions, buckets, config, score_dtype)
     listing = triton_top_k.TopK(config.top_p, exact=False)
     keys, _ = listing.listed(scores, counts)
     picked = unpack_ids(best_first_keys(keys, config.top_p))
     return triton_expansion.expand_in_order(
         picked, buckets.members, positions.int(), config.window_size, config.sink_size, top_k
     )
+
+
+def flat_select(
+    index_queries: torch.Tensor,
+    positions: torch.Tensor,
+    buckets: Buckets,
+    config: PortConfig,
+    top_k: int | None = None,
+    score_dtype: str = "bf16",
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Select each query's keys - the production composition, implementation-switched.
+
+    ``LSA_SELECT_IMPL`` picks the implementation (default ``reference``):
+    ``reference`` is v0.3.1's chain verbatim (``flat_select_reference``);
+    ``fused`` is the v0.4.0 measured select fusion - one kernel from scores to
+    best-first packed keys (pack + order-giving top-k fused, no [R, N] int64
+    key matrix) and the expansion reading the keys with the unpack fused in;
+    ``fused_unpack`` keeps the reference pack+top-k and fuses only the unpack
+    into the walk. All fused paths reproduce the reference output byte-exactly
+    (tests/test_select_fusion.py); unknown values fail loudly.
+    """
+    impl = os.environ.get("LSA_SELECT_IMPL", "reference")
+    if impl not in ("reference", "fused", "fused_unpack"):
+        raise ValueError(
+            f"LSA_SELECT_IMPL must be reference|fused|fused_unpack, got {impl!r}"
+        )
+    if impl == "reference":
+        return flat_select_reference(index_queries, positions, buckets, config, top_k, score_dtype)
+    top_k = config.top_k if top_k is None else top_k
+    scores, counts = _production_scores(index_queries, positions, buckets, config, score_dtype)
+    from lsa_rocm_lab.port import select_fused
+
+    if impl == "fused":
+        picks = select_fused.select_topk_scores(scores, counts, config.top_p)
+        return select_fused.expand_in_order_from_keys(
+            picks, buckets.members, positions.int(), config.window_size, config.sink_size, top_k
+        )
+    if impl == "fused_unpack":
+        listing = triton_top_k.TopK(config.top_p, exact=False)
+        keys, _ = listing.listed(scores, counts)
+        ordered = best_first_keys(keys, config.top_p)
+        return select_fused.expand_in_order_from_keys(
+            ordered, buckets.members, positions.int(), config.window_size, config.sink_size, top_k
+        )
+    raise AssertionError(f"unreachable impl {impl!r}")
 
 
 def tree_select(
