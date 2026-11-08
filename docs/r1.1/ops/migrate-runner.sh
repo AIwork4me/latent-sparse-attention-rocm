@@ -11,8 +11,15 @@
 # so --resume safely re-runs them from wherever a previous attempt aborted. To discard a partial
 # state instead: rollback-runner.sh, then `userdel -r lsa-runner; rm -rf /opt/actions-runner-lsa /opt/lsa-rocm`.
 # Validation (step 7) executes INSIDE the service security context — a transient systemd-run
-# service transcribing the installed unit's sandbox directives — never via `sudo -u`: a plain
-# sudo context sees all of /home and every device the unit's DevicePolicy=closed filters.
+# service transcribing the installed unit's COMPLETE effective sandbox: namespace directives AND
+# the full device access policy (DevicePolicy + every DeviceAllow entry, via
+# device-policy-check.sh parity/emit-entries) — never via `sudo -u`: a plain sudo context sees
+# all of /home and every device the unit's DevicePolicy=closed filters. Device checks are
+# ACCESS-based (real open(2) probes under the cgroup eBPF filter + a refused negative control),
+# never visibility-based: DevicePolicy does not hide nodes from /dev, it gates open(2).
+# --resume refuses to run while the migrated service is active or any lsa-runner process
+# (a GPU job can outlive `systemctl stop` under KillMode=process) is alive, and step 3 never
+# deletes a _work tree any process still holds open.
 set -euo pipefail
 
 OLD_RUNNER=/home/amd/actions-runner-lsa
@@ -40,7 +47,25 @@ grep -Fq "PY=\"$WORKFLOW_PY\"" "$HERE/../../../.github/workflows/rocm-regression
 if [ "$RESUME" = 1 ]; then
   id lsa-runner >/dev/null 2>&1 || { echo "ABORT: --resume but user lsa-runner absent (nothing to resume — run fresh)"; exit 1; }
   [ -d "$NEW_ROOT" ] || { echo "ABORT: --resume but $NEW_ROOT missing (run fresh)"; exit 1; }
-  echo "resume mode: user + /opt state present, re-running idempotent steps 2-7"
+  # Never resume into a LIVE system: steps 2-3 overwrite/strip the very trees the
+  # service and its jobs own. A GPU job can outlive `systemctl stop` (KillMode=process
+  # kills only the main process), so an explicit per-user process check is required
+  # even when the service already reports inactive.
+  if systemctl is-active --quiet github-runner-lsa.service 2>/dev/null; then
+    echo "ABORT: --resume but github-runner-lsa.service is ACTIVE — the migration appears"
+    echo "       complete/live. --resume is for ABORTED attempts only. To redo a completed"
+    echo "       migration: rollback-runner.sh first, then run fresh. To re-run §7 validation"
+    echo "       only: systemctl stop github-runner-lsa, wait for lsa-runner processes to"
+    echo "       exit, then --resume (steps 2-7 are idempotent; §7 re-validates everything)."
+    exit 1
+  fi
+  if pgrep -u lsa-runner >/dev/null 2>&1; then
+    echo "ABORT: --resume but lsa-runner processes are still alive (GPU job or KillMode=process straggler):"
+    pgrep -a -u lsa-runner || true
+    echo "       let the job finish and/or stop the service, WAIT for exit, then re-run --resume."
+    exit 1
+  fi
+  echo "resume mode: user + /opt state present and idle, re-running idempotent steps 2-7"
 else
   if id lsa-runner >/dev/null 2>&1; then
     echo "ABORT: user lsa-runner exists — a previous attempt may have partially completed."
@@ -51,6 +76,17 @@ else
   echo "name free"
   if [ -e "$NEW_ROOT" ]; then
     echo "ABORT: $NEW_ROOT already exists (stale or partial copy) — inspect, then --resume or clean it; never merge into it blind"
+    exit 1
+  fi
+  if [ -e "$NEW_VENV_ROOT" ]; then
+    echo "ABORT: $NEW_VENV_ROOT already exists (pre-existing destination venv state) — inspect it,"
+    echo "       then either --resume (if it is our partial copy) or remove it; never rsync over an unknown tree"
+    exit 1
+  fi
+  if [ -e /etc/systemd/system/github-runner-lsa.service ]; then
+    echo "ABORT: /etc/systemd/system/github-runner-lsa.service already installed (partially"
+    echo "       completed migration) — rollback-runner.sh removes it, or --resume if the /opt"
+    echo "       state is a partial copy of ours"
     exit 1
   fi
 fi
@@ -70,6 +106,27 @@ rsync -a "$OLD_RUNNER/" "$NEW_ROOT/"
 rsync -a "$OLD_VENV/" "$NEW_VENV_ROOT/.venv/"
 
 echo "== 3. Strip stale amd-owned runtime state from the copy =="
+# NEVER delete a live _work: a running job holds its checkout (cwd) and files
+# (fds) under _work. Probe every lsa-runner process's cwd + open descriptors
+# first — if anything still touches _work, abort instead of rm -rf.
+if [ -d "$NEW_ROOT/_work" ]; then
+  busy=""
+  for pid in $(pgrep -u lsa-runner 2>/dev/null || true); do
+    if readlink "/proc/$pid/cwd" 2>/dev/null | grep -qF "$NEW_ROOT/_work"; then
+      busy="$busy $pid(cwd)"
+    fi
+    for fd in "/proc/$pid/fd"/*; do
+      if readlink "$fd" 2>/dev/null | grep -qF "$NEW_ROOT/_work"; then
+        busy="$busy $pid(fd)"; break
+      fi
+    done
+  done
+  [ -z "$busy" ] || {
+    echo "ABORT: processes still hold $NEW_ROOT/_work open:$busy — never delete a live _work."
+    echo "       Let the job finish / stop the service and wait for exit, then re-run with --resume."
+    exit 1
+  }
+fi
 rm -rf "$NEW_ROOT/_work" "$NEW_ROOT/_diag" "$NEW_ROOT/runner-console.log" "$NEW_ROOT/svc.sh"* 2>/dev/null || true
 
 echo "== 4. Repair the relocated venv (recipe empirically validated 2026-11-08) =="
@@ -94,16 +151,32 @@ sleep 5
 systemctl status github-runner-lsa.service --no-pager | head -8
 
 echo "== 7. Isolation + GPU validation IN THE SERVICE SECURITY CONTEXT =="
+UNIT_FILE=/etc/systemd/system/github-runner-lsa.service
 # Parity guard: the installed unit must still carry the R1.1 design sandbox, so the validation
 # context below (transcribed from the live unit) can never silently weaken with an owner edit.
 for line in "User=lsa-runner" "ProtectHome=true" "ProtectSystem=strict" "DevicePolicy=closed" \
             "PrivateTmp=true" "NoNewPrivileges=true"; do
-  grep -q "^$line\$" /etc/systemd/system/github-runner-lsa.service || {
+  grep -q "^$line\$" "$UNIT_FILE" || {
     echo "ABORT: unit no longer pins '$line' — reconcile this script with the unit before validating"; exit 1
   }
 done
-# Transcribe the live unit into a transient service: sandbox directives and Environment= come
-# from systemctl show, so what the checks below see IS what the runner service sees.
+# Effective device access policy — the pre-correction defect: the transient context carried
+# DevicePolicy=closed but NO DeviceAllow entries, i.e. a zero-device sandbox in which the GPU
+# probe below could never pass. Rebuild the COMPLETE policy from the installed unit and verify
+# parity explicitly (unit file == what systemd actually loaded; catches drop-ins/reload lag)
+# plus node compatibility (the unit's nodes must exist on THIS host — card renumbering after a
+# reboot aborts loudly instead of failing later with a mystery EPERM).
+SHOW_FILE=/tmp/lsa-unit-device-policy.txt
+systemctl show github-runner-lsa.service -p DevicePolicy -p DeviceAllow > "$SHOW_FILE"
+bash "$HERE/device-policy-check.sh" parity "$UNIT_FILE" "$SHOW_FILE" || {
+  echo "ABORT: the live unit's device access policy diverges from $UNIT_FILE (details above)"; exit 1
+}
+bash "$HERE/device-policy-check.sh" nodes "$UNIT_FILE" || {
+  echo "ABORT: the unit's DeviceAllow entries do not match this host's GPU device nodes (details above)"; exit 1
+}
+# Transcribe the live unit into a transient service: namespace directives, Environment= AND
+# the full device access policy come from systemctl show / its capture, so what the checks
+# below see IS what the runner service sees.
 props=(--wait --pipe --collect --quiet)
 props+=(--property=User=lsa-runner --property=Group=lsa-runner)
 props+=(--property=WorkingDirectory="$(systemctl show github-runner-lsa.service -p WorkingDirectory --value)")
@@ -112,6 +185,10 @@ for p in ProtectHome ProtectSystem PrivateTmp NoNewPrivileges DevicePolicy; do
 done
 for p in $(systemctl show github-runner-lsa.service -p ReadWritePaths --value); do
   props+=(--property=ReadWritePaths="$p")
+done
+mapfile -t DA_ENTRIES < <(bash "$HERE/device-policy-check.sh" emit-entries "$SHOW_FILE")
+for da_entry in "${DA_ENTRIES[@]}"; do
+  props+=(--property=DeviceAllow="$da_entry")
 done
 read -ra ENV_WORDS <<< "$(systemctl show github-runner-lsa.service -p Environment --value)"
 for w in "${ENV_WORDS[@]}"; do props+=(--setenv="$w"); done
@@ -122,22 +199,83 @@ run_in_context bash -c 'test ! -e /home/amd && test ! -e /home/lsa-runner' \
   || { echo "ABORT: /home visible inside the service context (ProtectHome not effective)"; exit 1; }
 echo "credential isolation OK: /home entirely invisible in the service security context"
 
-echo "-- 7b. DevicePolicy=closed allowlist: /dev/dri inside the sandbox = only the unit's nodes --"
-allowed_dri="$(systemctl show github-runner-lsa.service -p DeviceAllow --value \
-  | tr ' ' '\n' | grep '^/dev/dri/' | xargs -n1 basename | sort -u | tr '\n' ' ')"
-echo "unit allowlist (dri): $allowed_dri"
-run_in_context bash -c 'ls /dev/dri 2>/dev/null | sort' > /tmp/lsa-iso-dri.txt || true
-echo "sandbox sees:         $(tr '\n' ' ' < /tmp/lsa-iso-dri.txt)"
-while read -r node; do
-  [ -z "$node" ] && continue
-  case " $allowed_dri " in
-    *" $node "*) ;;
-    *) echo "ABORT: /dev/dri/$node visible in the sandbox but NOT in the unit allowlist (host renumbered? fix the unit's DeviceAllow, re-run with --resume)"; exit 1 ;;
+echo "-- 7b. DevicePolicy=closed allowlist enforced on open(2): allowed nodes OPEN, others REFUSED --"
+# Access, not visibility: DevicePolicy is a cgroup eBPF filter on open(2) — every context still
+# SEES all nodes under /dev/dri, so the old `ls /dev/dri ⊆ allowlist` filename check proved
+# nothing. Here each allowlisted node is actually OPENED inside the transient context (a bash
+# exec-redirection is a real open(2)), and a non-allowed control device must be REFUSED.
+probed=0
+for da_entry in "${DA_ENTRIES[@]}"; do
+  read -r da_node da_mode <<<"$da_entry"
+  case "$da_node" in char-*|block-*) continue ;; esac   # device-group globs: no node to open
+  # NB: the w-only branch (exec 3>) opens O_TRUNC|O_CREAT — the VFS does not
+  # truncate device nodes, and the shipped unit only uses rw modes; kept for
+  # completeness if a future entry is write-only.
+  case "$da_mode" in
+    *r*w*) da_open="exec 3<>$da_node" ;;
+    *r*)   da_open="exec 3<$da_node" ;;
+    *)      da_open="exec 3>$da_node" ;;
   esac
-done < /tmp/lsa-iso-dri.txt
-echo "device allowlist OK: sandbox /dev/dri ⊆ unit allowlist"
+  run_in_context bash -c "$da_open" 2>/dev/null \
+    || { echo "ABORT: allowlisted device $da_node ($da_mode) NOT accessible in the service context —"
+         echo "       the DeviceAllow transcription into the transient unit is broken (details: $SHOW_FILE)"; exit 1; }
+  echo "   openable in-sandbox: $da_node ($da_mode)"
+  probed=$((probed + 1))
+done
+[ "$probed" -gt 0 ] || { echo "ABORT: no /dev-path DeviceAllow entries to access-probe (group globs only?)"; exit 1; }
+# Negative control: pick a DEVICE NODE (char/block only — directories like /dev/dri/by-path
+# are not subject to the cgroup device filter and would open regardless) the unit does NOT
+# allow, and require the open to FAIL inside the context with EPERM/EACCES ("Permission
+# denied") — any other errno (EBUSY, ENXIO...) is an ambiguous refusal, not filter proof.
+# Tiered for evidential strength:
+#   strong: a non-allowlisted /dev/dri node, or /dev/video* — lsa-runner's video/render
+#           groups permit these by DAC, so ONLY the cgroup filter can deny them;
+#   weak:   the first block device — DAC denies it too, so refusal is necessary but does
+#           not alone discriminate the filter (still asserted, labeled honestly).
+allowed_nodes="$(printf '%s\n' "${DA_ENTRIES[@]}" | awk '{print $1}')"
+neg_control="" neg_tier=""
+for n in /dev/dri/*; do
+  { [ -c "$n" ] || [ -b "$n" ]; } || continue
+  grep -qx "$n" <<<"$allowed_nodes" || { neg_control="$n"; neg_tier="strong (/dev/dri non-allowed: DAC-permitted, only the cgroup filter can deny)"; break; }
+done
+if [ -z "$neg_control" ]; then
+  for n in /dev/video*; do
+    [ -c "$n" ] || continue
+    grep -qx "$n" <<<"$allowed_nodes" || { neg_control="$n"; neg_tier="strong (/dev/video non-allowed: video-group DAC, only the cgroup filter can deny)"; break; }
+  done
+fi
+if [ -z "$neg_control" ]; then
+  for blk in /sys/class/block/*; do
+    [ -e "$blk" ] && { neg_control="/dev/${blk##*/}"; neg_tier="weak (block device: DAC-denied too — refusal asserted, filter not discriminated)"; break; }
+  done
+fi
+[ -n "$neg_control" ] || { echo "ABORT: no non-allowlisted device node found on this host for the negative control — unexpected /dev state, inspect manually"; exit 1; }
+{ [ -c "$neg_control" ] || [ -b "$neg_control" ]; } || { echo "ABORT: negative control $neg_control is not a device node — picker bug"; exit 1; }
+neg_err="$(run_in_context bash -c "exec 3<$neg_control" 2>&1 1>/dev/null)" || true
+if [ -z "$neg_err" ]; then
+  echo "ABORT: non-allowed device $neg_control WAS openable in the service context — DevicePolicy=closed"
+  echo "       is not filtering (transient context mis-built or policy drifted); this is a security failure"
+  exit 1
+fi
+grep -qi "permission denied" <<<"$neg_err" || {
+  echo "ABORT: non-allowed device $neg_control was refused for an UNEXPECTED reason (need the"
+  echo "       filter's EPERM 'Permission denied', got): $neg_err"
+  echo "       Ambiguous refusal — inspect and re-run with --resume."
+  exit 1
+}
+echo "device access OK: $probed allowlisted node(s) open in-sandbox; non-allowed $neg_control refused with EPERM [$neg_tier]"
 
 echo "-- 7c. GPU visible + Triton JIT compiles and runs INSIDE the sandbox --"
+# The GPU proof is only meaningful inside the CORRECT cgroup: attest the probe context is
+# the transient systemd service itself (system.slice/run-*.service with an INVOCATION_ID),
+# not some stray shell the checks accidentally escaped into.
+cg_line="$(run_in_context bash -c 'cat /proc/self/cgroup')"
+echo "probe cgroup: $cg_line"
+echo "$cg_line" | grep -qE '/system\.slice/run-[0-9a-zA-Z]+\.service$' \
+  || { echo "ABORT: probe context's /proc/self/cgroup is not a transient system.slice/run-*.service unit — the sandbox attestation failed"; exit 1; }
+inv="$(run_in_context bash -c 'echo "$INVOCATION_ID"')"
+[ -n "$inv" ] || { echo "ABORT: INVOCATION_ID unset inside the probe context — not running as a systemd unit"; exit 1; }
+echo "cgroup attestation OK: probes execute inside the transient service unit (the runner's own sandbox semantics)"
 cat > "$NEW_ROOT/home/iso_gpu_probe.py" <<'PYEOF'
 import torch, triton, triton.language as tl
 
@@ -169,7 +307,10 @@ listeners=$(pgrep -c -u lsa-runner -f Runner.Listener || true)
 echo "unique listener OK (1 Runner.Listener under lsa-runner; confirm the single online session gh-side, handoff step 3)"
 
 cat <<'EOF'
-MIGRATION HOST STEPS DONE (service-context isolation + GPU validation passed).
+MIGRATION HOST STEPS DONE (service-context isolation + device-access + GPU validation passed:
+§7 verified the COMPLETE unit device policy applied to the validation context — every
+DeviceAllow node opens in-sandbox, a non-allowed device is refused, and a real Triton
+kernel compiled+ran inside the transient service cgroup).
 Remaining (in order):
   1. Stale pre-migration queued run 42381769814: CANCELLED 2026-11-08 (docs/r1.1/ACTIONS_QUEUE_AUDIT.md).
      It was bound to the workflow file at 1ab0e0b ($HOME-derived venv) and could NEVER validate

@@ -113,3 +113,103 @@ def test_rollback_keeps_the_mutual_exclusion_rule():
     must keep forbidding running both at once."""
     script = ROLLBACK.read_text()
     assert "concurrent" in script or "mutually exclusive" in script
+
+
+# --------------------------------------------------------------------------
+# PR #6 final correction (owner review of 7f1c971): the transient validation
+# context must carry the unit's COMPLETE effective device access policy, and
+# device validation must exercise the cgroup filter (open(2)), not visibility.
+# --------------------------------------------------------------------------
+
+def test_transient_context_transcribes_the_unit_device_allow():
+    """Defect 1: the systemd-run context copied DevicePolicy=closed but no
+    DeviceAllow= entries - under `closed` that is a zero-device sandbox and
+    the in-context GPU probe can never pass. The script must build
+    --property=DeviceAllow= props FROM THE LIVE UNIT (via the extracted
+    device-policy-check.sh parser), never hardcode them, and must verify
+    parity between the unit file and what systemd actually loaded."""
+    script = MIGRATE.read_text()
+    assert "device-policy-check.sh" in script, (
+        "validation does not use the extracted device-policy validator"
+    )
+    assert re.search(r"--property=DeviceAllow=", script), (
+        "transient context is not given the unit's DeviceAllow entries"
+    )
+    assert re.search(r'parity\s+"?\$?\{?(UNIT_FILE|LSA_UNIT|--unit-file)', script) or \
+           re.search(r'check\.sh parity', script), (
+        "no explicit unit-file vs live-unit DeviceAllow parity verification"
+    )
+
+
+def test_device_validation_is_access_based_not_visibility_based():
+    """Defect 2: `ls /dev/dri`-vs-allowlist compares VISIBILITY, but
+    DevicePolicy is enforced by the cgroup eBPF filter on open(2) - every
+    context still *sees* the nodes. The check must actually OPEN each
+    allowlisted node inside the transient context (positive) and prove a
+    non-allowed device is refused (negative control)."""
+    script = MIGRATE.read_text()
+    assert "⊆ unit allowlist" not in script, (
+        "the vacuous filename-visibility check (ls /dev/dri subset) survived"
+    )
+    assert re.search(r"exec 3<>", script), (
+        "no open(2)-based access probe for the allowlisted device nodes"
+    )
+    assert re.search(r"refused|denied|must NOT be open", script), (
+        "no negative control proving non-allowed devices are inaccessible"
+    )
+
+
+def test_gpu_probe_attests_it_ran_in_the_transient_cgroup():
+    """The GPU/Triton proof is only meaningful INSIDE the correct cgroup and
+    service sandbox: the probe context must attest its own cgroup contains
+    the transient systemd unit (run-*.service, INVOCATION_ID set) — not just
+    any shell the checks might have escaped into."""
+    script = MIGRATE.read_text()
+    assert "/proc/self/cgroup" in script, (
+        "no cgroup self-attestation inside the validation context"
+    )
+    assert re.search(r"run-\[0-9a-zA-Z\]\+\\\.service", script), (
+        "cgroup attestation does not pin the transient run-*.service unit pattern"
+    )
+    assert "INVOCATION_ID" in script, (
+        "no systemd unit attestation (INVOCATION_ID) inside the probe context"
+    )
+
+
+def test_resume_refuses_while_service_or_gpu_job_is_live():
+    """--resume re-runs steps that strip/rmtree under /opt: it must refuse to
+    run while the migrated service is active or ANY lsa-runner process (a GPU
+    job can outlive `systemctl stop` under KillMode=process) is alive."""
+    script = MIGRATE.read_text()
+    resume_block = script.split('if [ "$RESUME" = 1 ]; then', 1)[1].split("\nelse", 1)[0]
+    assert "is-active" in resume_block, "resume path has no service-active refusal"
+    assert re.search(r"pgrep\s+-u\s+lsa-runner", resume_block), (
+        "resume path has no liveness check for lsa-runner processes "
+        "(GPU job / KillMode=process stragglers)"
+    )
+
+
+def test_never_deletes_a_live_work_directory():
+    """Step 3 rm -rf's $NEW_ROOT/_work: the deletion must be guarded by a
+    liveness probe (processes with cwd/fds under _work) right before it."""
+    script = MIGRATE.read_text()
+    step3 = script.split('== 3.', 1)[1].split('== 4.', 1)[0]
+    assert "rm -rf" in step3 and "_work" in step3
+    guard = script.split('== 3.', 1)[1].split('rm -rf "$NEW_ROOT/_work"', 1)[0]
+    assert re.search(r"/proc/.*(/cwd|/fd)|fuser", guard), (
+        "no per-process cwd/fd liveness probe guarding the _work deletion"
+    )
+
+
+def test_fresh_run_refuses_preexisting_destination_venv_and_unit():
+    """Partial-state detection must also cover: a pre-existing /opt/lsa-rocm
+    destination venv state and an already-installed unit file (an attempt that
+    died between useradd and enable, or unrelated pre-existing /opt state)."""
+    script = MIGRATE.read_text()
+    fresh_block = script.split('if [ "$RESUME" = 0 ]', 1)[0]
+    assert re.search(r'\[ -e "\$NEW_VENV_ROOT" \]', fresh_block), (
+        "fresh run does not abort on pre-existing destination venv state"
+    )
+    assert "/etc/systemd/system/github-runner-lsa.service" in fresh_block, (
+        "fresh run does not detect an already-installed unit file"
+    )
