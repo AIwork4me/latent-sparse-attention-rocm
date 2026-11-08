@@ -1,0 +1,27 @@
+--- v0.2.1-body-before.md	2026-11-08 10:03:01.947658072 +0800
++++ v0.2.1-body-after.md	2026-11-08 10:04:20.665169552 +0800
+@@ -1,4 +1,4 @@
+-# Release Notes — v0.2.1 (DRAFT — publication requires owner approval; tag target = PR #1 merge commit, to be recorded)
++# Release Notes — v0.2.1 (FINAL — published 2026-11-07T14:17:36Z under owner approval; tag `v0.2.1` → PR #1 merge commit `7b0b06f14578a5b9217d01510621bd38ab78a091`)
+ 
+ ## What this release is
+ 
+@@ -31,13 +31,13 @@
+ bash scripts/checkout_upstream.sh                 # pin 5ebea732 (UPSTREAM_BASELINE.json)
+ PYTHONPATH=src python -m lsa_rocm_lab.port.gates  # 16/16 on gfx1151
+ python -m pytest tests/ -v                        # full suite (GPU host)
+-# Receipt recompute: the R1 verifier (scripts/r1_verify_receipts.py) lives on the
+-# v0.3.x branch (PR #5, docs/release-closure/), NOT in this v0.2.1 tree - run it
+-# from a checkout of that branch, or recompute by hand: speedup == baseline_ms /
+-# candidate_ms for every comparison in the receipts below (1e-9 tolerance).
++# Receipt recompute: scripts/r1_verify_receipts.py (added to main by PR #5,
++# docs/release-closure/) post-dates this tag tree - run it from a checkout of
++# main or v0.3.1, or recompute by hand: speedup == baseline_ms / candidate_ms
++# for every comparison in the receipts below (1e-9 tolerance).
+ ```
+ 
+-## Source & evidence provenance (filled at tag time)
++## Source & evidence provenance (recorded at publication)
+ 
+ - PR #1 head: `c12e8b5` (= `79412f8` + Option-A pre-tag hygiene: version 0.2.1, manifest paths, bench docstring) · **merge commit: `7b0b06f14578a5b9217d01510621bd38ab78a091`** · tree: `5a83c9e7a281…`
+ - Post-merge validation at the merge tree (R1, 2026-11-07): CPU CI 117 passed/16 skipped/0 failed; **16/16 gates PASS on gfx1151** (trusted local); full GPU suite 133 passed; evidence 24/24 SHA256 OK.

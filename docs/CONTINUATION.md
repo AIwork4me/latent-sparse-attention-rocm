@@ -1,8 +1,17 @@
 # CONTINUATION — exact resume point for the next session
 
-Updated: 2026-11-07 ~14:40 UTC (post-release; owner approved chain 1–5, executed)
-Branch context: **main @ `8f2d13b`** — v0.3.1 RELEASED. PR #1 and PR #5 MERGED (merge commits `7b0b06f`, `958d948`); tags `v0.2.1`→`7b0b06f`, `v0.3.1`→`0f1abeb`; both Releases published. Legacy branches retained (`v0.2.1-scientific-validity`, `v0.3.0-kernel-optimization`) — do not delete; they are the rollback anchors.
+Updated: 2026-11-08 (R1.1 post-release hygiene executed on branch `chore/r1.1-post-release-hygiene`)
+Branch context: **main @ `1ab0e0b`** — v0.3.1 RELEASED. PR #1 and PR #5 MERGED (merge commits `7b0b06f`, `958d948`); tags `v0.2.1`→`7b0b06f`, `v0.3.1`→`0f1abeb`; both Releases published (**bodies corrected to FINAL publication language 2026-11-08, tags untouched** — `docs/r1.1/RELEASE_METADATA_AUDIT.md`). Legacy branches retained (`v0.2.1-scientific-validity`, `v0.3.0-kernel-optimization`) — do not delete; they are the rollback anchors.
 Upstream pin: `5ebea732` (unchanged; every receipt).
+
+## R1.1 executed (2026-11-08, branch `chore/r1.1-post-release-hygiene`)
+
+- **A1** both published Release bodies corrected (DRAFT wording → FINAL + exact tag targets; v0.3.1 test counts now lead with merged-tree 192/141; obsolete version-bump instruction marked EXECUTED). Archive + diffs: `docs/r1.1/release-archive/`.
+- **A2** superseded queued GPU run `42381678702` cancelled; run `42381769814` @ current main HEAD intentionally kept as the post-migration validation vehicle (`docs/r1.1/ACTIONS_QUEUE_AUDIT.md`).
+- **A3** runner migration fully preflighted nonprivileged; venv copy+repair **empirically validated** (torch+Triton kernel compile from relocated venv); corrected systemd unit fixes two R1-draft defects (`ProtectHome` hides the new HOME; `DeviceAllow` inert without `DevicePolicy=closed`); owner runbook `docs/r1.1/ops/migrate-runner.sh` + `rollback-runner.sh`. **Status OWNER_ACTION_REQUIRED** (`docs/r1.1/RUNNER_MIGRATION_VALIDATION.md`).
+- **A4** branch/tag protection + rulesets proposal (P1–P4) prepared with exact commands, **nothing applied** (`docs/r1.1/REPO_SECURITY_AUDIT.md`).
+- Baseline freeze ledger: `docs/r1.1/BASELINE_AUDIT.md`. v0.4.0 branch `feature/v0.4.0-measured-select-fusion` exists from the same verified main.
+
 
 ## Release ledger (exact)
 
@@ -16,9 +25,9 @@ Upstream pin: `5ebea732` (unchanged; every receipt).
 
 ## Awaiting owner console actions (only remaining items)
 
-1. **A3 runner migration** — sudo required at the console; paste-ready block: `docs/release-closure/R1_RUNNER_SECURITY.md` §2.1 (user `lsa-runner`, `/opt` install, hardened systemd unit, venv copy, one-line workflow path PR). Rollback §2.3. Runner stays OFFLINE until then (env approval already gates any dispatch).
+1. **A3 runner migration** — sudo required at the console; the R1.1-validated owner runbook supersedes the R1 §2.1 paste block: `sudo bash docs/r1.1/ops/migrate-runner.sh` (preflight-verified, empirically validated venv-repair recipe, corrected unit, rollback `rollback-runner.sh`). Runner stays OFFLINE until then (env approval already gates any dispatch). Then the kept queued run `42381769814` validates end-to-end.
 2. After migration: **rotate the `amd` gh credential** (`gh auth logout`).
-3. Optional UI toggle: Settings → Actions → require approval for all external contributors.
+3. **A4 protection proposal** (P1 ruleset main-protected, P2 tag protection `v*`, P3 external-contributor approval toggle, P4 runner-group scoping) — exact commands in `docs/r1.1/REPO_SECURITY_AUDIT.md`; apply from the owner console when approved.
 
 ## ONE next most important action
 

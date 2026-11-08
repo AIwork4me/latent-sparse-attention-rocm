@@ -1,0 +1,40 @@
+# github-runner-lsa.service — R1.1 corrected unit (supersedes R1_RUNNER_SECURITY.md §2.2 draft)
+# Corrections vs R1 draft, all findings of the R1.1 dry-run investigation:
+#   1. Environment=HOME=/opt/actions-runner-lsa/home  — ProtectHome=true hides ALL of /home,
+#      including /home/lsa-runner; without this override Triton (default $HOME/.triton),
+#      torch and every $HOME-writing library fail inside the sandbox.
+#   2. TRITON_CACHE_DIR explicit (kernel compilation cache must be writable).
+#   3. DevicePolicy=closed — makes the DeviceAllow list an actual allowlist
+#      (under the default `auto`, DeviceAllow entries add nothing).
+# Owner install: sudo cp github-runner-lsa.service /etc/systemd/system/ && sudo systemctl daemon-reload
+# Syntax verified offline with systemd-analyze verify (R1) at draft equality except the three
+# lines above; re-verify after copy on the host.
+
+[Unit]
+Description=GitHub Actions runner (lsa-rocm gfx1151, dedicated lsa-runner user)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=lsa-runner
+Group=lsa-runner
+WorkingDirectory=/opt/actions-runner-lsa
+Environment=HOME=/opt/actions-runner-lsa/home
+Environment=TRITON_CACHE_DIR=/opt/actions-runner-lsa/home/.triton
+Environment=PYTORCH_EXTENSIONS_DIR=/opt/actions-runner-lsa/home/.pytorch-extensions
+ExecStart=/opt/actions-runner-lsa/bin/runsvc.sh
+Restart=on-failure
+RestartSec=10
+KillMode=process
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/actions-runner-lsa /opt/lsa-rocm
+DevicePolicy=closed
+DeviceAllow=/dev/kfd rw
+DeviceAllow=/dev/dri/renderD128 rw
+DeviceAllow=/dev/dri/card1 rw
+
+[Install]
+WantedBy=multi-user.target
