@@ -1,17 +1,48 @@
 {
-  "run_id": "20261108T035559Z-memprobe",
-  "created_utc": "2026-11-08T03:55:59.023064+00:00",
+  "run_id": "20261108T093924Z-memprobe",
+  "created_utc": "2026-11-08T09:39:24.126625+00:00",
   "gpu_arch": "gfx1151",
-  "production_code_sha": "8e5e1e579085aa8df7564a3f9e18021892f0d0ff",
-  "production_src_dirty": true,
+  "device_name": "AMD Radeon 8060S Graphics",
+  "torch": "2.14.0+rocm10.1.0",
+  "hip": "7.16.26385",
+  "triton": "3.8.0",
+  "production_repo": "/home/amd/Desktop/lsa-v040-finalprobe",
+  "production_code_sha": "45a0ed12201b3a301712815dab32c0dac9c8fee4",
+  "production_src_dirty": false,
+  "production_tree_dirty": false,
+  "probe_script_sha256": "b3807551137044be602bc97c1091d1850959caffc5c61eb1b7aafa446ee5603d",
   "upstream_sha": "5ebea732d639576d2a7579b0de40e6252f9001f5",
   "context": 32768,
   "dtype": "bf16",
   "phase": "prefill_select_32768_rows",
-  "method": "torch.cuda.max_memory_allocated delta around one complete flat_select, warm (compiled) path, allocator steady; empty_cache+reset before each",
-  "impls": {
+  "method": "torch.cuda.max_memory_allocated delta around one complete flat_select, warm (compiled) path, allocator steady; empty_cache+reset before each sample; 5 raw samples per impl (medians derived, not sampled)",
+  "samples": {
+    "reference": [
+      2416181248,
+      2416181248,
+      2416181248,
+      2416181248,
+      2416181248
+    ],
+    "fused": [
+      1410203648,
+      1410203648,
+      1410203648,
+      1410203648,
+      1410203648
+    ],
+    "fused_unpack": [
+      2484076544,
+      2484076544,
+      2484076544,
+      2484076544,
+      2484076544
+    ]
+  },
+  "medians_bytes": {
     "reference": 2416181248,
     "fused": 1410203648,
     "fused_unpack": 2484076544
-  }
+  },
+  "samples_sha256": "da57db5cdc59dac4f5c4089e788ca0158f46ed4cb6e844e067af7a12bd8abb11"
 }

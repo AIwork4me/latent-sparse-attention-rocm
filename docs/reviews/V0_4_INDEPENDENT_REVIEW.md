@@ -36,3 +36,37 @@
 - Byte-exactness — **SURVIVES on every measured/production shape**; the wide-row fallback divergence (finding 1) fixed to upstream semantics; the reference's own wide-row latent unsoundness (finding 2) documented.
 
 *Post-audit confirmation: after the fixes (`33d9293`), the full suite (227/227), gates (17/17 reference and fused trees) re-ran green, and a confirming A/B receipt at the new SHA reproduced the headline bands (2.975× prefill select, 1.155–1.210× select+read) — `evidence/v0.4.0/ab/fused-postfix-s424243.json`.*
+
+---
+
+## Closure-session addendum (2026-11-08, final numerical code `45a0ed1`)
+
+A second independent pass (fresh reviewer context, R1.1/v0.4.0 closure mission) audited the
+handoff, provenance and the open HIGH finding. Dispositions:
+
+1. **Finding 2 (open HIGH) — FIXED.** `best_first_keys` now applies upstream `TopK.best()`'s
+   `~listed` mask (`counts=` parameter; both listing-holding call sites pass it). Oracle freeze
+   PROVEN, not asserted: whole-path byte-freeze vs the old op sequence across the ladder
+   (incl. both `columns == 4·top_p` and `columns < top_p` boundaries), gates byte-identical
+   (T=512 geometry sits exactly on the whole-path boundary), 31 new adversarial tests incl.
+   poison-injection, garbage-pattern determinism, 65536-context end-to-end byte-exactness
+   through the switch, and non-default (pow2) bucket capacities; non-pow2 caps now fail loudly.
+2. **New measured finding — reference-arm mask cost.** Unconditional masking cost the v0.3.1
+   oracle +28% at 32k prefill select (97.3 → 124.2 ms, receipt `fused-7fdb364-maskcost-s424243.json`).
+   Resolution: the production chain skips the mask exactly where it is provably a no-op
+   (`_mask_for`: whole path), keeping the oracle's measured timings/allocations comparable to
+   every published receipt; the sampled path always masks. Re-confirmed at the final SHA:
+   ref 97.08 → cand 32.61 ms = **2.977×** (`fused-final-s424243.json`, 3/3 rows exact).
+3. **Memory-claim provenance re-established.** The receipt had measured a dirty tree at an
+   evidence-commit SHA (`8e5e1e5`, `production_src_dirty: true`) — cause: the probe script was
+   itself uncommitted when it ran. Probe hardened (clean-tree fail-closed, `--repo` pinning,
+   device/runtime versions, 5 raw samples + canonical checksum); rerun clean at `45a0ed1`;
+   raw bytes reproduce the original exactly; reduction independently recomputed:
+   **−959.4 MiB (41.6%)**. Original archived verbatim; checksums in EVIDENCE_INDEX.md.
+4. **Runner-migration handoff defect (outside this review's scope, same session):** the kept
+   queued run `42381769814` was bound to the pre-migration workflow file (`$HOME`-derived venv)
+   and could never validate the migrated runner — cancelled; see `docs/r1.1/ACTIONS_QUEUE_AUDIT.md`.
+
+**Verdict: all headline claims SURVIVE at the final numerical code `45a0ed1`; finding 2 closed;
+no unverified performance claim remains in the v0.4.0 documents.** Default stays `reference`;
+promotion remains a separate owner decision.
