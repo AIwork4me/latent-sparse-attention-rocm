@@ -98,14 +98,13 @@ def main() -> int:
     idx_q, idx_k = make_index_space(q, k)
     buckets = pipeline.build_buckets_gpu(idx_k, config)
     positions = torch.arange(32768, device=q.device)
-    rows = idx_q[:4096]
     import os
 
     def _switched(impl):
         def fn():
             os.environ["LSA_SELECT_IMPL"] = impl
             try:
-                return pipeline.flat_select(rows, positions, buckets, config)
+                return pipeline.flat_select(idx_q, positions, buckets, config)  # full 32768-row prefill
             finally:
                 os.environ.pop("LSA_SELECT_IMPL", None)
         return fn
