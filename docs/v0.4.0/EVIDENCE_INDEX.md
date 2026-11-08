@@ -11,8 +11,10 @@ Every v0.4.0 claim in `MEASURED_SELECT_FUSION.md` / `BASELINE_AND_BOTTLENECKS.md
 | V040-E | B4 A/B receipts, `fused`: 9 process runs = 3 seeds (`424243`, `777001`, `20261105`) × 3 reps, full matrix, interleaved, warmup 5 / reps 20; per-row byte-exact correctness pre+post; impl SHA `9fb32f9`, upstream `5ebea732`, GPU state embedded | `evidence/v0.4.0/ab/fused-s{seed}-rep{1,2,3}.json` (run ids `rep<N>-<ts>Z`) | sha256s printed at write; per-file in commit message trail |
 | V040-F | B4 A/B receipts, `fused_unpack` (F1 alternative): 3 runs (one per seed) | `evidence/v0.4.0/ab/fused-unpack-s{seed}-rep1.json` | as above |
 | V040-G | B4 aggregation (observed ranges, per-seed medians, pooled medians, run spreads) — inputs V040-E / V040-F | `evidence/v0.4.0/ab/aggregate-fused.{json,md}`, `aggregate-fused-unpack.{json,md}` | derived, regenerable by `scripts/aggregate_v040_ab.py` |
-| V040-H | Peak-memory measurement (32k bf16 select: reference 2304 MiB → fused 1345 MiB, fused_unpack 2369 MiB) — command in `MEASURED_SELECT_FUSION.md` §3 | session-measured, command + outputs recorded there | doc-recorded |
-| V040-I | Correctness: 34-test byte-exact equivalence suite + 226/226 full suite + 17/17 gates × {default, batched, fused} (run log in PR description) | `tests/test_select_fusion.py` | CI-rerunnable |
+| V040-H | Peak-memory receipt (audit finding 3): 32k bf16 select — reference 2304.2 MiB → fused 1344.9 MiB (−959.3), fused_unpack 2369.0; `max_memory_allocated` delta method, warm path | `evidence/v0.4.0/ab/memory-probe.json` | sha256 `c8f961df…` |
+| V040-I | Correctness: 35-test byte-exact equivalence suite (incl. NaN/±inf/−0 and length-respecting fallback) + 227/227 full suite + 17/17 gates × {default, batched, fused} | `tests/test_select_fusion.py` | CI-rerunnable |
+| V040-J | Independent adversarial review (fresh-context agent): verdicts + findings 1–6 with dispositions; all headline speedups recomputed from raw samples and SURVIVE | `docs/reviews/V0_4_INDEPENDENT_REVIEW.md` | verdict table |
+| V040-K | Post-audit-fix confirming A/B receipt at production SHA `33d9293` (32k bf16: prefill select 2.975×, prefill s+r 1.210×, decode s+r 1.155×, ragged s+r 1.204× — inside the campaign bands) | `evidence/v0.4.0/ab/fused-postfix-s424243.json` | sha256 `835c7335…` |
 
 ## Immutability rules
 
