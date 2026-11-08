@@ -3,8 +3,8 @@
 执行者：ZCode（owner 指示以本机 ZCode 会话替代 codex exec；MISSION 边界全程遵守）
 任务书：`lsa_gfx1151_overnight_v1_kit.zip / CODEX_GFX1151_OVERNIGHT_V1_MISSION.md`
 工作树：`~/lsa-v1-overnight` · 分支 `exp/gfx1151-v1-night-20261108-2155` · 基线 main `83e410b`（= 任务书起点，无漂移）· upstream pin `5ebea732`
-夜内提交链：`614becc`（P0 ledger）→ `bf36917`（M1）→ `9c1a431`（M2/M3 harness + M4）→ `1465e5f`（M2 findings）→ `e2b6ab5`（M3 pilot）→（收尾提交见文末）
-未推送（push 未执行；分支保留在本地，随时可推）。**未动 main、未动 PR#8（仍 DRAFT）、未 sudo、未发布任何 tag/Release。**
+夜内提交链：`614becc`（P0 ledger）→ `bf36917`（M1）→ `9c1a431`（M2/M3 harness + M4）→ `1465e5f`（M2 findings）→ `e2b6ab5`（M3 pilot）→ `d54e78b`（closeout）
+**已推送并开 Draft PR #10**（owner 2026-11-09 晨间授权 push + open PR；http.version=HTTP/1.1 变通推送成功）。**未动 main、未动 PR#8（仍 DRAFT）、未 sudo、未发布任何 tag/Release。**
 
 ## 总览：计划 vs 执行
 
@@ -128,7 +128,7 @@ v0.4.0 发布判定（`V040_RELEASE_GO_NOGO.md`）：**工程 GO / 执行仍 own
 4. （新增）若要 v0.5：投入 upstream 蒸馏路线训练 index 投影（Qwen3 类大 head_dim 模型的唯一路线）+ 预注册 RULER/NIAH ≥100 例 campaign。
 5. （新增）port 工程项：短序列（T<512）bucket 支持；chunked prefill 设计（>128k 唯一路径）。
 6. （新增）SGLang：先决定是否预拉批准的 gfx1151 容器车道，再谈 v0.6。
-7. 本分支处置：`exp/gfx1151-v1-night-20261108-2155`（本地，含全部收据与 FINDINGS）——owner 决定推送/开 Draft PR（今晚未推送）。
+7. 本分支处置：`exp/gfx1151-v1-night-20261108-2155` 已推送，**Draft PR #10** 已开（owner 晨间授权）——含全部收据与 FINDINGS，供审阅；是否合并/如何拆分由 owner 决定。
 
 ## 11. 结论
 

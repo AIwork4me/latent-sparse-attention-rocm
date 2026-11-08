@@ -40,5 +40,6 @@ free -h | head -2        # keep >=6 GiB available for OS
 ## Campaign CLOSED 2026-11-09 ~01:50 +08:00 (STOP.json written)
 
 All workstreams terminal: M1 PASS(+fresh 3x3) / M2 PASS / M3 PILOT_DONE(+ext) /
-M4 BLOCKED / M6 PASS / M7 packet NO-GO. Nothing pushed; branch awaits owner decision.
-Next session should NOT rerun tonight's experiments - read OVERNIGHT_REPORT.md first.
+M4 BLOCKED / M6 PASS / M7 packet NO-GO. Branch PUSHED and **Draft PR #10** opened
+(owner authorized 2026-11-09 morning). Next session should NOT rerun tonight's
+experiments - read OVERNIGHT_REPORT.md first.
