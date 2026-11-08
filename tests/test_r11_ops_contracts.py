@@ -151,11 +151,75 @@ def test_device_validation_is_access_based_not_visibility_based():
     assert "⊆ unit allowlist" not in script, (
         "the vacuous filename-visibility check (ls /dev/dri subset) survived"
     )
-    assert re.search(r"exec 3<>", script), (
-        "no open(2)-based access probe for the allowlisted device nodes"
+    assert "device-open-probe.py" in script, (
+        "no structured open(2)-based access probe for the device nodes"
     )
     assert re.search(r"refused|denied|must NOT be open", script), (
         "no negative control proving non-allowed devices are inaccessible"
+    )
+
+
+def test_negative_control_checks_errno_structurally_not_by_string():
+    """EPERM(1)="Operation not permitted" is the cgroup device filter's
+    signature; EACCES(13)="Permission denied" is DAC. strerror string
+    matching cannot tell them apart (and misses EPERM entirely) - the probe
+    must use os.open() + OSError.errno, and the strong tier must also prove
+    the DAC premise (open permitted as lsa-runner OUTSIDE the filter)."""
+    script = MIGRATE.read_text()
+    assert 'grep -qi "permission denied"' not in script.replace("'\\''", "'"), (
+        "strerror string matching for permission denials survived"
+    )
+    assert "EPERM" in script and "EACCES" in script, (
+        "errno classes EPERM/EACCES are not distinguished in the script"
+    )
+    assert "setpriv" in script, (
+        "no DAC-premise evidence (open as lsa-runner outside the cgroup filter)"
+    )
+    assert re.search(r"strong negative control", script, re.I), (
+        "the strong tier is optional - weak-only evidence could start the runner"
+    )
+    assert "lsa-open-probe-stderr" in script, (
+        "probe stderr is discarded - aborts would be undiagnosable"
+    )
+
+
+def test_runner_starts_only_after_all_validation_passes():
+    """Fail-closed sequencing: the unit is installed and reloaded but the
+    runner must NOT be started (enable --now) until every pre-start check
+    (parity, device access, isolation, writability, Triton JIT) has passed;
+    a failed check leaves the runner offline."""
+    script = MIGRATE.read_text()
+    step6 = script.split("== 6.", 1)[1].split("== 7.", 1)[0]
+    assert "--now" not in step6, "step 6 still starts the runner before validation"
+    assert "daemon-reload" in step6, "step 6 must reload the manager without starting"
+    assert not re.search(r"^[ \t]*systemctl (start|restart|isolate)\b", script, re.M), (
+        "a systemctl start/restart/isolate exists outside the single enable --now gate"
+    )
+    m_start = re.search(r"^[ \t]*systemctl enable --now", script, re.M)
+    assert m_start, "no executable enable --now anywhere (runner would never start)"
+    last_probe_marker = script.rfind("ISO-GPU-PROBE-OK")
+    assert last_probe_marker != -1 and m_start.start() > last_probe_marker, (
+        "enable --now must come after the in-context Triton JIT proof"
+    )
+    assert re.search(r"offline", script.split("== 7.", 1)[1].split("== 8.", 1)[0], re.I), (
+        "no fail-closed 'runner stays offline' statement in the validation section"
+    )
+
+
+def test_emit_entries_capture_is_fail_closed():
+    """`mapfile < <(emit-entries)` cannot propagate parser failure: a
+    malformed capture would silently yield an EMPTY DeviceAllow transcription
+    (the defect-1 zero-device context). The capture must check the exit code
+    explicitly and refuse an empty entry list."""
+    script = MIGRATE.read_text()
+    assert not re.search(r"mapfile -t DA_ENTRIES < <\(bash", script), (
+        "bare mapfile-from-process-substitution capture swallows parser failures"
+    )
+    assert re.search(r'emit-entries "\$SHOW_FILE" > "\$\w+"', script), (
+        "emit-entries is not captured with an explicit exit-code-checked redirect"
+    )
+    assert '${#DA_ENTRIES[@]}' in script, (
+        "no non-empty guard on the captured DeviceAllow entries"
     )
 
 

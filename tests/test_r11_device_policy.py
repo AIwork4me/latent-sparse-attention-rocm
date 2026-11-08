@@ -199,6 +199,27 @@ def test_parity_normalizes_mode_order_and_omitted_modes(tmp_path):
     assert rc == 0, out
 
 
+def test_parity_tolerates_implicit_char_rtc_under_protect_clock(tmp_path):
+    """systemd injects DeviceAllow=char-rtc r into the LIVE unit whenever
+    ProtectClock=yes (verified on systemd 255) — absent from the unit file.
+    That is not drift and must not dead-end every future --resume."""
+    unit = write(tmp_path, "unit", "[Service]\nDevicePolicy=closed\nProtectClock=yes\n"
+                                  + unit_file_text().replace("[Service]\n", ""))
+    show = write(tmp_path, "show", make_show([("char-rtc", "r")] + EXPECTED_ENTRIES))
+    rc, out = run_check("parity", unit, show)
+    assert rc == 0, out
+
+
+def test_parity_still_flags_char_rtc_without_protect_clock(tmp_path):
+    """Tolerance is conditional: char-rtc r in the live unit WITHOUT
+    ProtectClock=yes in the unit file is genuine drift → hard abort."""
+    unit = write(tmp_path, "unit", unit_file_text())
+    show = write(tmp_path, "show", make_show([("char-rtc", "r")] + EXPECTED_ENTRIES))
+    rc, out = run_check("parity", unit, show)
+    assert rc == 1, out
+    assert "char-rtc" in out
+
+
 def test_emit_entries_refuses_an_empty_allowlist(tmp_path):
     """Emitting nothing would silently recreate the defect-1 zero-device
     transient context — must be a loud usage error."""

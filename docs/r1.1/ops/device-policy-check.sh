@@ -107,13 +107,22 @@ cmd_parity() {
     die "DevicePolicy drift: unit file '$up' vs live unit '$sp' — reconcile (drop-in? daemon-reload lag?) before validating"
   fi
   case "$up" in closed|strict)
-    [ -n "$sent" ] || die "DevicePolicy=$up with an EMPTY live DeviceAllow list = zero-device sandbox (the defect-1 class)" ;;
+    [ -n "$sent" ] || die "DevicePolicy=$up with an EMPTY live DeviceAllow list = zero-device sandbox (the defect-1 class)"
+    [ -n "$uent" ] || die "DevicePolicy=$up but the unit file itself has no DeviceAllow entries — zero-GPU sandbox (the defect-1 class)" ;;
   esac
+  # systemd INJECTS implicit DeviceAllow entries into the live unit for certain sandbox
+  # options — verified on systemd 255: ProtectClock=yes => 'DeviceAllow=char-rtc r'
+  # appears in `systemctl show` but not in the unit file. That is not drift; tolerate
+  # it exactly when the unit file enables the corresponding option. Unconditional
+  # tolerance would hide real drift, so the entry must vanish again if the option does.
+  if grep -Eq '^[[:space:]]*ProtectClock=yes\b' "$unit_file"; then
+    sent=$(grep -vx "char-rtc r" <<<"$sent" || true)
+  fi
   only_unit=$(comm -23 <(echo "$uent") <(echo "$sent"))
   only_live=$(comm -13 <(echo "$uent") <(echo "$sent"))
   [ -z "$only_unit" ] || die "DeviceAllow entries in the unit file but NOT in the live unit:
 $only_unit"
-  [ -z "$only_live" ] || die "DeviceAllow entries in the live unit but NOT in the unit file:
+  [ -z "$only_live" ] || die "DeviceAllow entries in the live unit but NOT in the unit file (implicit ProtectClock 'char-rtc r' is tolerated; anything else is drift — drop-in? daemon-reload lag?):
 $only_live"
   echo "device-policy parity OK: DevicePolicy=$sp, $(echo "$sent" | wc -l) DeviceAllow entries identical (unit file == live unit)"
 }

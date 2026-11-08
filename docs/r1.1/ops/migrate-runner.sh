@@ -7,7 +7,8 @@
 #   /opt >= 12 GiB free · venv copy+repair empirically validated · siblings are amd's user-scoped
 #   units (untouched by this system-unit migration).
 # Partial-state policy: a fresh run aborts if the user OR /opt state already exists (never merges
-# into a half-copy silently). Steps 2-7 are idempotent (rsync / sed / rm / chown / unit install),
+# into a half-copy silently). Steps 2-8 are idempotent (rsync / sed / rm / chown / unit
+# install / validation / enable+start),
 # so --resume safely re-runs them from wherever a previous attempt aborted. To discard a partial
 # state instead: rollback-runner.sh, then `userdel -r lsa-runner; rm -rf /opt/actions-runner-lsa /opt/lsa-rocm`.
 # Validation (step 7) executes INSIDE the service security context — a transient systemd-run
@@ -15,8 +16,13 @@
 # the full device access policy (DevicePolicy + every DeviceAllow entry, via
 # device-policy-check.sh parity/emit-entries) — never via `sudo -u`: a plain sudo context sees
 # all of /home and every device the unit's DevicePolicy=closed filters. Device checks are
-# ACCESS-based (real open(2) probes under the cgroup eBPF filter + a refused negative control),
-# never visibility-based: DevicePolicy does not hide nodes from /dev, it gates open(2).
+# ACCESS-based (structured os.open()/OSError.errno probes via device-open-probe.py — EPERM is
+# the cgroup filter's signature, EACCES is DAC, never strerror string-matched), never
+# visibility-based: DevicePolicy does not hide nodes from /dev, it gates open(2).
+# SEQUENCING (fail-closed): step 6 installs the unit and reloads the manager but does NOT
+# start the runner; §7 validates everything first; step 8 runs `systemctl enable --now` only
+# after ALL checks pass. Any pre-start failure leaves the runner OFFLINE (unit installed but
+# inactive) — recover with --resume or rollback-runner.sh.
 # --resume refuses to run while the migrated service is active or any lsa-runner process
 # (a GPU job can outlive `systemctl stop` under KillMode=process) is alive, and step 3 never
 # deletes a _work tree any process still holds open.
@@ -142,13 +148,13 @@ chown -R lsa-runner:lsa-runner "$NEW_ROOT" "$NEW_VENV_ROOT"
 chmod 600 "$NEW_ROOT/.runner" "$NEW_ROOT/.credentials" "$NEW_ROOT/.credentials_rsaparams" 2>/dev/null || true
 mkdir -p "$NEW_ROOT/home" && chown lsa-runner:lsa-runner "$NEW_ROOT/home"   # sandbox HOME (unit sets it)
 
-echo "== 6. System unit (corrected R1.1 draft in this repo) =="
+echo "== 6. System unit install + manager reload (runner NOT started yet) =="
+# Fail-closed sequencing: the runner must stay offline until EVERY pre-start check
+# in §7 passes (device access, isolation, writability, Triton JIT). A §7 abort
+# therefore leaves the unit installed-but-inactive; rollback or --resume from there.
 cp "$HERE/github-runner-lsa.service" /etc/systemd/system/github-runner-lsa.service
 systemd-analyze verify /etc/systemd/system/github-runner-lsa.service
 systemctl daemon-reload
-systemctl enable --now github-runner-lsa.service
-sleep 5
-systemctl status github-runner-lsa.service --no-pager | head -8
 
 echo "== 7. Isolation + GPU validation IN THE SERVICE SECURITY CONTEXT =="
 UNIT_FILE=/etc/systemd/system/github-runner-lsa.service
@@ -186,7 +192,21 @@ done
 for p in $(systemctl show github-runner-lsa.service -p ReadWritePaths --value); do
   props+=(--property=ReadWritePaths="$p")
 done
-mapfile -t DA_ENTRIES < <(bash "$HERE/device-policy-check.sh" emit-entries "$SHOW_FILE")
+# Fail-closed transcription capture: `mapfile < <(...)` cannot propagate a parser
+# failure — a malformed capture would silently transcribe ZERO DeviceAllow entries
+# (the defect-1 zero-device context). Capture to a file, check the exit code
+# explicitly, and refuse an empty entry list.
+DA_LIST=/tmp/lsa-da-entries.txt
+bash "$HERE/device-policy-check.sh" emit-entries "$SHOW_FILE" > "$DA_LIST" || {
+  echo "ABORT: DeviceAllow transcription (emit-entries) failed — the transient context"
+  echo "       would be built without the unit's device allowlist; runner stays offline"
+  exit 1
+}
+mapfile -t DA_ENTRIES < "$DA_LIST"
+[ "${#DA_ENTRIES[@]}" -ge 1 ] || {
+  echo "ABORT: emit-entries produced no DeviceAllow entries (zero-device transcription) — runner stays offline"
+  exit 1
+}
 for da_entry in "${DA_ENTRIES[@]}"; do
   props+=(--property=DeviceAllow="$da_entry")
 done
@@ -199,71 +219,119 @@ run_in_context bash -c 'test ! -e /home/amd && test ! -e /home/lsa-runner' \
   || { echo "ABORT: /home visible inside the service context (ProtectHome not effective)"; exit 1; }
 echo "credential isolation OK: /home entirely invisible in the service security context"
 
-echo "-- 7b. DevicePolicy=closed allowlist enforced on open(2): allowed nodes OPEN, others REFUSED --"
-# Access, not visibility: DevicePolicy is a cgroup eBPF filter on open(2) — every context still
-# SEES all nodes under /dev/dri, so the old `ls /dev/dri ⊆ allowlist` filename check proved
-# nothing. Here each allowlisted node is actually OPENED inside the transient context (a bash
-# exec-redirection is a real open(2)), and a non-allowed control device must be REFUSED.
+echo "-- 7b. DevicePolicy=closed allowlist enforced on open(2): allowed nodes OPEN, non-allowed EPERM-denied --"
+# Access, not visibility: DevicePolicy is a cgroup eBPF filter on open(2) — every context
+# still SEES all nodes under /dev/dri. Each allowlisted node is OPENED inside the transient
+# context by device-open-probe.py: os.open() + OSError.errno, NEVER strerror string matching
+# (EPERM(1)="Operation not permitted" is the cgroup filter's signature; EACCES(13)=
+# "Permission denied" is DAC — indistinguishable by text). The probe is staged into
+# $NEW_ROOT/home because ProtectHome=true hides the repo checkout the script runs from;
+# probe stderr goes to a persistent log so every abort below is diagnosable post-mortem.
+PROBE_ERR_LOG=/tmp/lsa-open-probe-stderr.log
+: > "$PROBE_ERR_LOG"
+cleanup_staged_probes() { rm -f "$NEW_ROOT/home/iso_gpu_probe.py" "$NEW_ROOT/home/device-open-probe.py"; }
+trap cleanup_staged_probes EXIT   # staged probes are never part of the install, even on abort
+OPEN_PROBE="$NEW_ROOT/home/device-open-probe.py"
+VENV_PY="$NEW_VENV_ROOT/.venv/bin/python"
+cp "$HERE/device-open-probe.py" "$OPEN_PROBE"
+chown lsa-runner:lsa-runner "$OPEN_PROBE" && chmod 0755 "$OPEN_PROBE"
+probe_mode_for() {  # unit mode (subset of r,w,m) -> open mode for the probe
+  local om=""
+  [[ "$1" == *r* ]] && om+="r"
+  [[ "$1" == *w* ]] && om+="w"
+  echo "${om:-}"
+}
 probed=0
 for da_entry in "${DA_ENTRIES[@]}"; do
   read -r da_node da_mode <<<"$da_entry"
   case "$da_node" in char-*|block-*) continue ;; esac   # device-group globs: no node to open
-  # NB: the w-only branch (exec 3>) opens O_TRUNC|O_CREAT — the VFS does not
-  # truncate device nodes, and the shipped unit only uses rw modes; kept for
-  # completeness if a future entry is write-only.
   case "$da_mode" in
-    *r*w*) da_open="exec 3<>$da_node" ;;
-    *r*)   da_open="exec 3<$da_node" ;;
-    *)      da_open="exec 3>$da_node" ;;
+    *[rw]*) ;;                                          # has an open permission
+    *) echo "   note: $da_node grants mknod only ('m') — no open permission to probe"; continue ;;
   esac
-  run_in_context bash -c "$da_open" 2>/dev/null \
-    || { echo "ABORT: allowlisted device $da_node ($da_mode) NOT accessible in the service context —"
-         echo "       the DeviceAllow transcription into the transient unit is broken (details: $SHOW_FILE)"; exit 1; }
-  echo "   openable in-sandbox: $da_node ($da_mode)"
-  probed=$((probed + 1))
+  om="$(probe_mode_for "$da_mode")"
+  open_line="$(run_in_context "$VENV_PY" "$OPEN_PROBE" open "$da_node" "$om" 2>>"$PROBE_ERR_LOG")" || true
+  if [ "$open_line" = "OPEN-OK $da_node" ]; then
+    echo "   openable in-sandbox: $da_node ($da_mode)"
+    probed=$((probed + 1))
+  elif [[ "$open_line" == "OPEN-ERR $da_node "* ]]; then
+    read -r _ _ p_errno p_name <<<"$open_line"
+    echo "ABORT: allowlisted device $da_node ($da_mode) NOT accessible in the service context:"
+    echo "       open() failed with $p_name ($p_errno) — EPERM means the DeviceAllow entry was"
+    echo "       not transcribed into the transient unit; ENOENT/ENXIO mean the node is gone."
+    echo "       Runner stays OFFLINE. Probe stderr: $PROBE_ERR_LOG"
+    exit 1
+  else
+    echo "ABORT: unparseable probe output for $da_node: '$open_line' — runner stays offline."
+    echo "       Probe stderr (venv python / systemd-run diagnostics): $PROBE_ERR_LOG"
+    exit 1
+  fi
 done
-[ "$probed" -gt 0 ] || { echo "ABORT: no /dev-path DeviceAllow entries to access-probe (group globs only?)"; exit 1; }
-# Negative control: pick a DEVICE NODE (char/block only — directories like /dev/dri/by-path
-# are not subject to the cgroup device filter and would open regardless) the unit does NOT
-# allow, and require the open to FAIL inside the context with EPERM/EACCES ("Permission
-# denied") — any other errno (EBUSY, ENXIO...) is an ambiguous refusal, not filter proof.
-# Tiered for evidential strength:
-#   strong: a non-allowlisted /dev/dri node, or /dev/video* — lsa-runner's video/render
-#           groups permit these by DAC, so ONLY the cgroup filter can deny them;
-#   weak:   the first block device — DAC denies it too, so refusal is necessary but does
-#           not alone discriminate the filter (still asserted, labeled honestly).
+[ "$probed" -gt 0 ] || { echo "ABORT: no /dev-path DeviceAllow entries with open permissions to probe — runner stays offline"; exit 1; }
+# Negative control — STRONG TIER REQUIRED (adversarial review: weak-tier-only evidence must
+# never be enough to start the runner). Strong = a non-allowed char/block device node that
+# lsa-runner can open by DAC ALONE, proven OUTSIDE any device filter (setpriv as lsa-runner
+# in our unrestricted root cgroup; BOTH rc==0 and OPEN-OK required). Inside the service
+# context that same open MUST then fail with EPERM — the cgroup device filter's signature.
+# EACCES there = DAC refused (node groups/mode changed? udev/ACL race?) — NOT filter
+# evidence. ENOENT/ENXIO/anything else = ambiguous. Every non-EPERM outcome hard-aborts.
 allowed_nodes="$(printf '%s\n' "${DA_ENTRIES[@]}" | awk '{print $1}')"
-neg_control="" neg_tier=""
-for n in /dev/dri/*; do
-  { [ -c "$n" ] || [ -b "$n" ]; } || continue
-  grep -qx "$n" <<<"$allowed_nodes" || { neg_control="$n"; neg_tier="strong (/dev/dri non-allowed: DAC-permitted, only the cgroup filter can deny)"; break; }
+neg_control="" dac_line=""
+for cand_glob in "/dev/dri/*" "/dev/video*"; do
+  for n in $cand_glob; do
+    { [ -c "$n" ] || [ -b "$n" ]; } || continue            # device nodes only (never dirs/symlink-dirs)
+    grep -qx "$n" <<<"$allowed_nodes" && continue          # must NOT be allowlisted
+    if command -v setpriv >/dev/null 2>&1; then
+      dac_rc=0
+      dac_line="$(setpriv --reuid lsa-runner --regid lsa-runner --init-groups \
+                    "$VENV_PY" "$OPEN_PROBE" open "$n" r 2>>"$PROBE_ERR_LOG")" || dac_rc=$?
+      if [ "$dac_rc" -eq 0 ] && [ "$dac_line" = "OPEN-OK $n" ]; then
+        neg_control="$n"
+        break 2
+      fi
+      echo "   note: candidate $n failed the DAC premise (rc=$dac_rc, $dac_line) — trying the next candidate"
+    else
+      echo "   note: setpriv unavailable — a DAC premise cannot be evidenced; the strong tier is impossible"
+      break 2
+    fi
+  done
 done
 if [ -z "$neg_control" ]; then
-  for n in /dev/video*; do
-    [ -c "$n" ] || continue
-    grep -qx "$n" <<<"$allowed_nodes" || { neg_control="$n"; neg_tier="strong (/dev/video non-allowed: video-group DAC, only the cgroup filter can deny)"; break; }
-  done
-fi
-if [ -z "$neg_control" ]; then
-  for blk in /sys/class/block/*; do
-    [ -e "$blk" ] && { neg_control="/dev/${blk##*/}"; neg_tier="weak (block device: DAC-denied too — refusal asserted, filter not discriminated)"; break; }
-  done
-fi
-[ -n "$neg_control" ] || { echo "ABORT: no non-allowlisted device node found on this host for the negative control — unexpected /dev state, inspect manually"; exit 1; }
-{ [ -c "$neg_control" ] || [ -b "$neg_control" ]; } || { echo "ABORT: negative control $neg_control is not a device node — picker bug"; exit 1; }
-neg_err="$(run_in_context bash -c "exec 3<$neg_control" 2>&1 1>/dev/null)" || true
-if [ -z "$neg_err" ]; then
-  echo "ABORT: non-allowed device $neg_control WAS openable in the service context — DevicePolicy=closed"
-  echo "       is not filtering (transient context mis-built or policy drifted); this is a security failure"
+  echo "ABORT: no STRONG negative control available: found no non-allowlisted device node that"
+  echo "       lsa-runner can open by DAC alone (tried /dev/dri/* and /dev/video*; setpriv: $(command -v setpriv || echo missing))."
+  echo "       Without it the cgroup device filter cannot be PROVEN to discriminate — the runner stays OFFLINE."
+  echo "       Ensure a video/render-group device exists outside the allowlist (e.g. a camera node /dev/video0),"
+  echo "       then re-run with --resume. Details: $PROBE_ERR_LOG"
   exit 1
 fi
-grep -qi "permission denied" <<<"$neg_err" || {
-  echo "ABORT: non-allowed device $neg_control was refused for an UNEXPECTED reason (need the"
-  echo "       filter's EPERM 'Permission denied', got): $neg_err"
-  echo "       Ambiguous refusal — inspect and re-run with --resume."
+echo "   DAC premise (as lsa-runner, OUTSIDE any device filter): $dac_line"
+neg_line="$(run_in_context "$VENV_PY" "$OPEN_PROBE" open "$neg_control" r 2>>"$PROBE_ERR_LOG")" || true
+if [ "$neg_line" = "OPEN-OK $neg_control" ]; then
+  echo "ABORT: non-allowed device $neg_control WAS openable in the service context —"
+  echo "       DevicePolicy=closed is not filtering (transient context mis-built or policy"
+  echo "       drifted); this is a security failure. Runner stays OFFLINE. Probe stderr: $PROBE_ERR_LOG"
   exit 1
-}
-echo "device access OK: $probed allowlisted node(s) open in-sandbox; non-allowed $neg_control refused with EPERM [$neg_tier]"
+elif [[ "$neg_line" == "OPEN-ERR $neg_control "* ]]; then
+  read -r _ _ n_errno n_name <<<"$neg_line"
+  case "$n_name" in
+    EPERM)
+      echo "device access OK: $probed allowlisted node(s) open in-sandbox; non-allowed $neg_control"
+      echo "   denied with EPERM (cgroup device filter signature), DAC premise proven outside the filter" ;;
+    EACCES)
+      echo "ABORT: strong-tier control $neg_control was refused with EACCES (DAC), not EPERM —"
+      echo "       the node's groups/mode changed since the premise probe (udev/ACL race?) or the premise"
+      echo "       was misread. This is NOT cgroup-filter evidence. Runner stays OFFLINE. Probe stderr: $PROBE_ERR_LOG"
+      exit 1 ;;
+    *)
+      echo "ABORT: non-allowed $neg_control refused for an unexpected reason: $n_name ($n_errno) —"
+      echo "       ambiguous (node vanished / no driver?). Runner stays OFFLINE. Probe stderr: $PROBE_ERR_LOG"
+      exit 1 ;;
+  esac
+else
+  echo "ABORT: unparseable negative probe output: '$neg_line' — runner stays offline."
+  echo "       Probe stderr (venv python / systemd-run diagnostics): $PROBE_ERR_LOG"
+  exit 1
+fi
 
 echo "-- 7c. GPU visible + Triton JIT compiles and runs INSIDE the sandbox --"
 # The GPU proof is only meaningful inside the CORRECT cgroup: attest the probe context is
@@ -292,25 +360,37 @@ assert bool((y == x * 2).all()), "triton kernel produced a wrong result in the s
 print("ISO-GPU-PROBE-OK", torch.cuda.get_device_name(0), "| torch", torch.__version__, "| triton", triton.__version__)
 PYEOF
 chown lsa-runner:lsa-runner "$NEW_ROOT/home/iso_gpu_probe.py"
-run_in_context "$NEW_VENV_ROOT/.venv/bin/python" "$NEW_ROOT/home/iso_gpu_probe.py" | tee /tmp/lsa-iso-gpu.log
+run_in_context "$VENV_PY" "$NEW_ROOT/home/iso_gpu_probe.py" | tee /tmp/lsa-iso-gpu.log
 grep -q "ISO-GPU-PROBE-OK" /tmp/lsa-iso-gpu.log || { echo "ABORT: in-service GPU/Triton probe failed (see /tmp/lsa-iso-gpu.log)"; exit 1; }
-rm -f "$NEW_ROOT/home/iso_gpu_probe.py"
 
 echo "-- 7d. sandbox HOME writable (Triton cache lands there per the unit's Environment) --"
 run_in_context bash -c 'test -w "$HOME" && test -w "$TRITON_CACHE_DIR"' \
   || { echo "ABORT: sandbox HOME/TRITON_CACHE_DIR not writable"; exit 1; }
 
-echo "-- 7e. service active, exactly one listener for the identity --"
-systemctl is-active --quiet github-runner-lsa.service || { echo "ABORT: github-runner-lsa.service not active"; exit 1; }
+echo "== 8. ALL pre-start checks PASSED — start the persistent runner now =="
+systemctl enable --now github-runner-lsa.service
+sleep 5
+systemctl status github-runner-lsa.service --no-pager | head -8
+systemctl is-active --quiet github-runner-lsa.service || {
+  echo "ABORT: github-runner-lsa.service not active after enable --now."
+  echo "       The unit remains ENABLED (it will start on reboot) — keep it offline with"
+  echo "       `systemctl disable github-runner-lsa` or run rollback-runner.sh."
+  exit 1
+}
 listeners=$(pgrep -c -u lsa-runner -f Runner.Listener || true)
-[ "$listeners" -eq 1 ] || { echo "ABORT: $listeners Runner.Listener processes under lsa-runner (duplicate-listener risk — stop the extra one before proceeding)"; exit 1; }
+[ "$listeners" -eq 1 ] || {
+  echo "ABORT: $listeners Runner.Listener processes under lsa-runner (duplicate-listener risk)."
+  echo "       The unit remains enabled+running — stop the extra listener, or run rollback-runner.sh."
+  exit 1
+}
 echo "unique listener OK (1 Runner.Listener under lsa-runner; confirm the single online session gh-side, handoff step 3)"
 
 cat <<'EOF'
-MIGRATION HOST STEPS DONE (service-context isolation + device-access + GPU validation passed:
-§7 verified the COMPLETE unit device policy applied to the validation context — every
-DeviceAllow node opens in-sandbox, a non-allowed device is refused, and a real Triton
-kernel compiled+ran inside the transient service cgroup).
+MIGRATION HOST STEPS DONE (validated FIRST, started LAST: §7 proved the COMPLETE unit
+device policy on the transient context — every DeviceAllow node opens in-sandbox and the
+non-allowed control is denied with EPERM, its DAC premise evidenced outside the filter —
+plus credential isolation, writability and a real Triton JIT run in the service cgroup;
+§8 only then enabled+started the persistent runner and verified exactly one Listener).
 Remaining (in order):
   1. Stale pre-migration queued run 42381769814: CANCELLED 2026-11-08 (docs/r1.1/ACTIONS_QUEUE_AUDIT.md).
      It was bound to the workflow file at 1ab0e0b ($HOME-derived venv) and could NEVER validate
