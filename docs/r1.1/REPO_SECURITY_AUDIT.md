@@ -26,35 +26,71 @@ Design constraints: the owner is the **only** merger; CPU CI is fast and hosted;
 
 ### P1 — Ruleset "main-protected" (branch `main`)
 
+Revised 2026-11-08 (handoff-review session): the first draft's `bypassactors[]…` placeholder was
+not a runnable request, and its claim "admin bypass retained by default" was **factually wrong —
+rulesets do NOT auto-bypass repository admins** (unlike classic branch protection; bypass must be
+granted explicitly via `bypass_actors`, [docs](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/creating-rulesets-for-a-repository)).
+The command below is a complete, valid JSON-body request (auditable, no `gh` magic-field expansion):
+
 ```bash
-gh api -X POST repos/AIwork4me/latent-sparse-attention-rocm/rulesets \
-  -f name=main-protected -f target=branch -f enforcement=active \
-  -F 'conditions[ref_name][include][]=refs/heads/main' \
-  -F 'rules[][type]=deletion' \
-  -F 'rules[][type]=non_fast_forward' \
-  -F 'rules[][type]=required_status_checks' \
-  -F 'rules[][parameters][required_status_checks][strict]=false' \
-  -F 'rules[][parameters][required_status_checks][do_not_enforce_on_create]=false' \
-  -F 'rules[][parameters][required_status_checks][checks][][context]=static-and-unit' \
-  -F 'bypassactors[]…' # see note
+gh api -X POST repos/AIwork4me/latent-sparse-attention-rocm/rulesets --input - <<'EOF'
+{
+  "name": "main-protected",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": {"ref_name": {"include": ["refs/heads/main"], "exclude": []}},
+  "rules": [
+    {"type": "deletion"},
+    {"type": "non_fast_forward"},
+    {"type": "required_status_checks",
+     "parameters": {"strict": false, "do_not_enforce_on_create": false,
+                    "checks": [{"context": "static-and-unit"}]}}
+  ],
+  "bypass_actors": []
+}
+EOF
 ```
+
+Bypass decision for a single-maintainer repo (choose ONE before applying):
+
+- **Option A — no bypass (recommended, as written above; `bypass_actors: []`)**: `main` becomes
+  immutable for everyone **including the owner**. The emergency escape is disabling/editing the
+  ruleset itself — always available to a repo admin, and each such change lands in the audit log,
+  which is exactly the evidence trail an immutability policy wants. No silent path around history.
+- **Option B — explicit owner bypass**: add before the closing `]`:
+  `{"actor_id": <id>, "actor_type": "User", "bypass_mode": "always"}` where
+  `<id> = gh api user --jq .id` evaluated at apply time. Keeps the owner's force-push ability
+  (e.g. disaster repair) at the cost of a silent-bypass path existing.
+
 Equivalent UI path: Settings → Rules → Rulesets → New branch ruleset → target `main` → Require status checks (`static-and-unit`, non-strict so the release-day pattern "push bump commit then tag after CI" still works) → Block deletions → Block non-fast-forward.
 
-Effects: force-push and deletion of `main` become impossible for normal tokens (admin bypass retained by default — deliberately, so the single maintainer is never locked out); merges require green hosted CPU CI. `strict=false` keeps "branch up to date" off — required for a one-person repo merging sequential PRs without churn. The GPU job `gates-and-kernels` is deliberately NOT required (runner offline ⇒ would deadlock all merges; its gate is the environment approval, kept).
+Effects: force-push and deletion of `main` become impossible for every token/pat (Option A: for everyone; rollback = disable the ruleset, audited); merges require green hosted CPU CI. `strict=false` keeps "branch up to date" off — required for a one-person repo merging sequential PRs without churn. The GPU job `gates-and-kernels` is deliberately NOT required (runner offline ⇒ would deadlock all merges; its gate is the environment approval, kept).
 
-Note on bypass: by default repo admins bypass branch rulesets — for a single-maintainer repo this is the desired fail-open-for-owner posture; if the owner prefers, add themselves explicitly and set `enforcement=evaluate` first to observe for a week before `active`.
+Note on bypass: ~~by default repo admins bypass branch rulesets~~ — **incorrect as of the 2026-11-08 revision** (rulesets never auto-bypass admins; see the Option A/B decision above). If unsure, apply with `"enforcement": "evaluate"` first to observe a week of matching activity, then flip to `active`.
 
 ### P2 — Tag protection for release tags
 
+Revised 2026-11-08: the legacy tag-protection REST endpoint (`POST /repos/{o}/{r}/tags/protection`)
+was **removed after 2024-08-30** (sunset notice 2024-05-29; existing protections migrated to
+rulesets) — the first draft led with a dead operation. The current mechanism is a tag-target
+ruleset (rules `deletion` + `non_fast_forward`; `creation` deliberately NOT restricted so the
+owner can still cut release tags):
+
 ```bash
-gh api -X POST repos/AIwork4me/latent-sparse-attention-rocm/tags/protection \
-  -f pattern='v*' -F 'allow_deletion=false' -F 'allow_force_push=false' 2>/dev/null \
-  || gh api -X POST repos/AIwork4me/latent-sparse-attention-rocm/rulesets \
-       -f name=release-tags -f target=tag -f enforcement=active \
-       -F 'conditions[ref_name][include][]=refs/tags/v*' \
-       -F 'rules[][type]=non_fast_forward' -F 'rules[][type]=deletion'
+gh api -X POST repos/AIwork4me/latent-sparse-attention-rocm/rulesets --input - <<'EOF'
+{
+  "name": "release-tags",
+  "target": "tag",
+  "enforcement": "active",
+  "conditions": {"ref_name": {"include": ["refs/tags/v*"], "exclude": []}},
+  "rules": [
+    {"type": "deletion"},
+    {"type": "non_fast_forward"}
+  ]
+}
+EOF
 ```
-(Tag-protection REST supports pattern + deletion/force flags on current GitHub; the ruleset fallback covers tag targets if the legacy endpoint is unavailable.) Effect: `v0.2.1`/`v0.3.1` and future release tags can never be rewritten or deleted — converts the mission invariant "historical tags are immutable" into an enforced control. Rollback: DELETE the rule / ruleset.
+Effect: `v0.2.1`/`v0.3.1` and future release tags can never be rewritten or deleted — converts the mission invariant "historical tags are immutable" into an enforced control. Rollback: `gh api -X DELETE repos/AIwork4me/latent-sparse-attention-rocm/rulesets/<id>` (id from the verification listing below).
 
 ### P3 — External-contributor first-run approval (UI only, no REST field)
 
@@ -74,10 +110,15 @@ Settings → Actions → Runners → group of `lsa-rocm-gfx1151` → "Selected r
 ## 4. Verification commands (after the owner applies P1/P2)
 
 ```bash
-gh api repos/AIwork4me/latent-sparse-attention-rocm/rulesets --jq '.[] | {name, enforcement}'
-gh api repos/AIwork4me/latent-sparse-attention-rocm/tags/protection
-# negative test (expect rejection): git push origin +refs/heads/main:refs/heads/main --force (on a throwaway clone)
-# positive test: open a draft PR from a throwaway branch → merge button blocked until static-and-unit green
+# both rulesets present and active (lists id + enforcement — the id is the rollback handle):
+gh api repos/AIwork4me/latent-sparse-attention-rocm/rulesets --jq '.[] | {id, name, target, enforcement}'
+# per-ruleset detail (rules actually registered):
+gh api "repos/AIwork4me/latent-sparse-attention-rocm/rulesets/<id>" --jq '{name, rules, conditions}'
+# negative tests (expect rejection): on a throwaway clone —
+#   force-push main:    git push origin +refs/heads/main:refs/heads/main --force
+#   delete a v* tag:    git push origin :refs/tags/v0.3.1   (throwaway tag first!)
+# positive test: open a draft PR from a throwaway branch → merge blocked until static-and-unit green
 ```
+(The legacy `GET /repos/{o}/{r}/tags/protection` check is gone with the endpoint — verify tags via the `release-tags` ruleset above.)
 
 **Status: proposal complete — OWNER_ACTION_REQUIRED to apply P1–P4.** Nothing was modified.
