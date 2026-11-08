@@ -11,3 +11,9 @@
 ## Campaign-local blockers
 
 (none yet)
+
+## Campaign-local (2026-11-08 overnight_v1)
+
+- M4 SGLang serving: BLOCKED_WITH_ROOT_CAUSE - see EXPERIMENT_REGISTRY m4-sglang-matrix.
+  Unblocks only with an owner-approved pre-pulled gfx1151 sgl-dev image (different ROCm
+  container lane, ~ROCm 7.2.4) or an explicitly scoped integration effort on the port.

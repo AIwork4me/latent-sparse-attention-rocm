@@ -20,3 +20,14 @@ showed spurious FAILED-open lines; corrected run: 28/28 OK.
 `fuser /dev/kfd` empty at campaign start; GitHub GPU run 42483727525 remains `pending`
 (no runner online to pick it up). Local physical GPU tests authorized per mission P0.3.
 Recheck kfd pids before every heavy step.
+
+## D005 - 2026-11-08 ~23:00 - transformers install into the existing user venv
+M3 needs a causal LM forward. No interpreter on the host has transformers. Installing
+`transformers` (with tokenizers/safetensors/huggingface-hub) INTO the existing user venv
+(`/home/amd/Desktop/lsa-rocm-eval-starter/.venv`) - NOT a global/system install (mission
+forbids those), no torch/numpy version changes (numpy 2.5.3 already satisfies), fully
+reversible (pip uninstall). Verified after install: torch import + CUDA + versions unchanged.
+Qwen3-0.6B (Apache-2.0) chosen from the local HF cache: cached, complete, in the 0.5-3B band.
+Note: upstream's zero-training Qwen3.5 integration needs partial-rotary position-free dims;
+Qwen3-0.6B is full-rope, so M3 uses THIS REPO's port path (regroup full-dim index space)
+exactly as the benchmark does - the mission asks to prove the repo's own path connectable.
