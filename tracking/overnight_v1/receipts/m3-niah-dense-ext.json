@@ -1,0 +1,123 @@
+{
+  "run_id": "20261108T145328Z",
+  "created_utc": "2026-11-08T14:53:28.812449+00:00",
+  "harness": "scripts/m3_model_integration.py (overnight_v1 M3)",
+  "model": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+  "model_path": "/home/amd/.cache/huggingface/hub/models--TinyLlama--TinyLlama-1.1B-Chat-v1.0/snapshots/fe8a4ea1ffedaf415f4da2f062534de366a451e6",
+  "model_revision": "fe8a4ea1ffedaf415f4da2f062534de366a451e6",
+  "index_dim": 256,
+  "license": "Apache-2.0",
+  "upstream_sha": "5ebea732d639576d2a7579b0de40e6252f9001f5",
+  "production_code_sha": "e2b6ab5aa7ce7fa2cc88a4e2b7d6e34775681201",
+  "production_src_dirty": false,
+  "gpu": "AMD Radeon 8060S Graphics",
+  "torch": "2.14.0+rocm10.1.0",
+  "hip": "7.16.26385",
+  "transformers": "5.22.2",
+  "corpus": "wikitext-2-raw-v1 test (local HF cache), stride=window+1, non-overlapping",
+  "window": 2048,
+  "modes": [
+    "niah"
+  ],
+  "results": {
+    "niah": {
+      "dense": {
+        "cases": [
+          {
+            "case": 0,
+            "magic": 1000,
+            "answer": "The magic number XZY0 is 100",
+            "hit": false
+          },
+          {
+            "case": 1,
+            "magic": 1111,
+            "answer": "XZY1 is 1111.",
+            "hit": true
+          },
+          {
+            "case": 2,
+            "magic": 1222,
+            "answer": "Based on the text material above, genera",
+            "hit": false
+          },
+          {
+            "case": 3,
+            "magic": 1333,
+            "answer": "1333",
+            "hit": true
+          },
+          {
+            "case": 4,
+            "magic": 1444,
+            "answer": "Eighth Army's XZY4 is 1",
+            "hit": false
+          },
+          {
+            "case": 5,
+            "magic": 1555,
+            "answer": "The magic number XZY5 is 1",
+            "hit": false
+          },
+          {
+            "case": 6,
+            "magic": 1666,
+            "answer": "1666.",
+            "hit": true
+          },
+          {
+            "case": 7,
+            "magic": 1777,
+            "answer": "1777.",
+            "hit": true
+          },
+          {
+            "case": 8,
+            "magic": 1888,
+            "answer": "1888.",
+            "hit": true
+          },
+          {
+            "case": 9,
+            "magic": 1999,
+            "answer": "1999.",
+            "hit": true
+          },
+          {
+            "case": 10,
+            "magic": 2110,
+            "answer": "XZY10 is a magic number.",
+            "hit": false
+          },
+          {
+            "case": 11,
+            "magic": 2221,
+            "answer": "2221.",
+            "hit": true
+          },
+          {
+            "case": 12,
+            "magic": 2332,
+            "answer": "2332.",
+            "hit": true
+          },
+          {
+            "case": 13,
+            "magic": 2443,
+            "answer": "2443.",
+            "hit": true
+          },
+          {
+            "case": 14,
+            "magic": 2554,
+            "answer": "2554.",
+            "hit": true
+          }
+        ],
+        "hits": 10,
+        "n": 15,
+        "label": "PILOT_ONLY"
+      }
+    }
+  }
+}

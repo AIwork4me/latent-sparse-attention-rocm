@@ -1,0 +1,75 @@
+{
+  "run_id": "20261108T144806Z",
+  "created_utc": "2026-11-08T14:48:06.906292+00:00",
+  "harness": "scripts/m3_model_integration.py (overnight_v1 M3)",
+  "model": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+  "model_path": "/home/amd/.cache/huggingface/hub/models--TinyLlama--TinyLlama-1.1B-Chat-v1.0/snapshots/fe8a4ea1ffedaf415f4da2f062534de366a451e6",
+  "model_revision": "fe8a4ea1ffedaf415f4da2f062534de366a451e6",
+  "index_dim": 256,
+  "license": "Apache-2.0",
+  "upstream_sha": "5ebea732d639576d2a7579b0de40e6252f9001f5",
+  "production_code_sha": "e2b6ab5aa7ce7fa2cc88a4e2b7d6e34775681201",
+  "production_src_dirty": false,
+  "gpu": "AMD Radeon 8060S Graphics",
+  "torch": "2.14.0+rocm10.1.0",
+  "hip": "7.16.26385",
+  "transformers": "5.22.2",
+  "corpus": "wikitext-2-raw-v1 test (local HF cache), stride=window+1, non-overlapping",
+  "window": 2048,
+  "modes": [
+    "ppl"
+  ],
+  "results": {
+    "ppl": {
+      "dense": {
+        "mean_nll": 2.0764275640249252,
+        "ppl": 7.975923538208008,
+        "tokens": 98304,
+        "windows": 48,
+        "wall_s": 39.0,
+        "peak_alloc_gib": 3.89,
+        "attn_calls": 0,
+        "build_p50_ms": null,
+        "select_p50_ms": null,
+        "read_p50_ms": null
+      },
+      "lsa_full": {
+        "mean_nll": 2.0764808505773544,
+        "ppl": 7.976349830627441,
+        "tokens": 98304,
+        "windows": 48,
+        "wall_s": 151.4,
+        "peak_alloc_gib": 2.78,
+        "attn_calls": 1056,
+        "build_p50_ms": 10.952,
+        "select_p50_ms": 2.24,
+        "read_p50_ms": 126.088
+      },
+      "lsa_1024": {
+        "mean_nll": 2.0764993503689766,
+        "ppl": 7.976498126983643,
+        "tokens": 98304,
+        "windows": 48,
+        "wall_s": 54.4,
+        "peak_alloc_gib": 2.78,
+        "attn_calls": 1056,
+        "build_p50_ms": 11.279,
+        "select_p50_ms": 1.494,
+        "read_p50_ms": 35.977
+      },
+      "lsa_256": {
+        "mean_nll": 2.076484983166059,
+        "ppl": 7.976381778717041,
+        "tokens": 98304,
+        "windows": 48,
+        "wall_s": 54.3,
+        "peak_alloc_gib": 2.78,
+        "attn_calls": 1056,
+        "build_p50_ms": 11.274,
+        "select_p50_ms": 1.505,
+        "read_p50_ms": 35.983
+      }
+    }
+  },
+  "corpus_windows": 48
+}
