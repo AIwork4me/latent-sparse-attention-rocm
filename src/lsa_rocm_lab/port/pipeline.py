@@ -281,8 +281,10 @@ def flat_select(
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Select each query's keys - the production composition, implementation-switched.
 
-    ``LSA_SELECT_IMPL`` picks the implementation (default ``reference``):
-    ``reference`` is v0.3.1's chain verbatim (``flat_select_reference``);
+    ``LSA_SELECT_IMPL`` picks the implementation (default ``fused`` since the
+    v0.4.0 promotion; the pre-promotion default was ``reference``):
+    ``reference`` is v0.3.1's chain verbatim (``flat_select_reference``) - the
+    immutable oracle, still one env var away;
     ``fused`` is the v0.4.0 measured select fusion - one kernel from scores to
     best-first packed keys (pack + order-giving top-k fused, no [R, N] int64
     key matrix) and the expansion reading the keys with the unpack fused in;
@@ -290,7 +292,7 @@ def flat_select(
     into the walk. All fused paths reproduce the reference output byte-exactly
     (tests/test_select_fusion.py); unknown values fail loudly.
     """
-    impl = os.environ.get("LSA_SELECT_IMPL", "reference")
+    impl = os.environ.get("LSA_SELECT_IMPL", "fused")
     if impl not in ("reference", "fused", "fused_unpack"):
         raise ValueError(
             f"LSA_SELECT_IMPL must be reference|fused|fused_unpack, got {impl!r}"
