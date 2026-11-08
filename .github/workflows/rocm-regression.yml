@@ -65,8 +65,13 @@ jobs:
         run: python3 scripts/check_workflow_security.py
       - name: Locate the ROCm venv (exact-pinned, outside the workspace)
         run: |
-          PY="$HOME/Desktop/lsa-rocm-eval-starter/.venv/bin/python"
-          test -x "$PY" || { echo "::error::ROCm venv missing at $PY (see README quick start)"; exit 1; }
+          # Absolute migrated location (docs/r1.1/ops/migrate-runner.sh). Deliberately NOT
+          # $HOME-derived: the migrated service unit redefines HOME to its sandbox, so the
+          # pre-migration $HOME/Desktop/... path resolves to nothing there. Runs bound to
+          # the workflow file at 1ab0e0b (e.g. former queued run 42381769814) keep the old
+          # path forever and can never validate the migrated runner - cancel, do not re-approve.
+          PY="/opt/lsa-rocm/.venv/bin/python"
+          test -x "$PY" || { echo "::error::ROCm venv missing at $PY (run docs/r1.1/ops/migrate-runner.sh, or see rollback-runner.sh if reverting)"; exit 1; }
           "$PY" -c "import torch; assert torch.cuda.is_available() and torch.version.hip, 'no ROCm GPU visible'"
           echo "PYTHON=$PY" >> "$GITHUB_ENV"
       - name: Pin the upstream checkout
