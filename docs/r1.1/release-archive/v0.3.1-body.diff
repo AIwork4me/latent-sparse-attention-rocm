@@ -1,0 +1,32 @@
+--- v0.3.1-body-before.md	2026-11-08 10:03:03.232633737 +0800
++++ v0.3.1-body-after.md	2026-11-08 10:04:30.683980409 +0800
+@@ -1,4 +1,4 @@
+-# Release Notes — v0.3.1 (DRAFT — publication requires owner approval; tag target = PR #5 merge commit, to be recorded)
++# Release Notes — v0.3.1 (FINAL — published 2026-11-07T14:26:43Z, Latest, under owner approval; tag `v0.3.1` → version-bump commit `0f1abeb6a88c84123d06fde7654a01d5254153d2`)
+ 
+ ## What this release is
+ 
+@@ -6,7 +6,7 @@
+ 
+ ## Correctness guarantees (17-gate manifest, all PASS on gfx1151; both tree implementations)
+ 
+-v0.2.1's 16 gates plus **gate H** (tiled production read == v1 kernel + zero-length contract). Fresh R1 verification at PR #5 HEAD `261805c`: **17/17 default AND 17/17 `LSA_TREE_IMPL=batched`**; gfx1151 suite 186 passed; GitHub-hosted CPU CI 135 passed / 46 loud GPU skips; static security guard PASS. Fail-closed manifest (`lsa_rocm_lab.gate_manifest`): a receipt is claimable only with exactly these 17 ids, all PASS — v0.2.1's 16-gate receipts intentionally no longer validate (documented, by design).
++v0.2.1's 16 gates plus **gate H** (tiled production read == v1 kernel + zero-length contract). R1 verified 17/17 at PR #5 HEAD `261805c`, and **re-verified at the merged tree `958d948`: 17/17 default AND 17/17 `LSA_TREE_IMPL=batched`**; gfx1151 suite 192 passed at the merged tree (186 pre-merge at PR #5 HEAD); GitHub-hosted CPU CI 141 passed / 46 skipped / 0 failed (135 pre-merge; R1's own fixtures lifted the count); static security guard PASS. Fail-closed manifest (`lsa_rocm_lab.gate_manifest`): a receipt is claimable only with exactly these 17 ids, all PASS — v0.2.1's 16-gate receipts intentionally no longer validate (documented, by design).
+ 
+ ## Improvements (measured, multi-seed where variance matters)
+ 
+@@ -49,11 +49,11 @@
+ 
+ Hardware/software: AMD Ryzen AI MAX+ PRO 395 / Radeon 8060S (gfx1151), 32 GiB UMA · ROCm 10.1.0 pip venv · torch 2.14.0+rocm10.1.0 · Triton 3.8.0+git669b31ac · Python 3.12.3 · upstream `Prefrontal-AI/latent-sparse-attention@5ebea732`.
+ 
+-## Source & evidence provenance (filled at tag time)
++## Source & evidence provenance (recorded at publication)
+ 
+ - PR #5 merge commit: **`958d948c2e43203cdef28cd4afa1e916c5c9a718`** (branch head `99902d7` = `c7661c2` + merge of main after PR #1) · version bump commit (this tag): **`0f1abeb`** · merged tree at 958d948: `da63d36797f7…`
+ - §7 merged-tree validation at `958d948` (R1, 2026-11-07, gfx1151 trusted local): CPU CI 141 passed/46 skipped/0 failed; **17/17 gates default AND `LSA_TREE_IMPL=batched`**; 192 gfx1151 tests; evidence 71/71 SHA256 OK; receipt recompute 153/153; workflow-security guard PASS; GitHub main CI success.
+ - Receipts: `evidence/receipts-v0.3.1-final/` (bf16 `20261106T171009Z-adapter`, fp16 `20261106T171202Z-adapter`) + `evidence/seed-study-20261106T171352Z/` (9) — audit `audit-v031.json` 11/11 APPROVED, 153/153 recomputed. Counting rule for cumulative v0.3.x: **42 unique audited receipts = 6 matrix (v0.3.0@`4988672` ×2, v0.3.0-final@`1e73c3a` ×2, v0.3.1@`60c004b` ×2) + 36 seed-study (4 studies × 9)**, plus 2 correctness-gated A/B artifacts (not receipts).
+-- Pre-tag hygiene gate (owner checklist A8): `pyproject.toml` version bump to `0.3.1` (currently `0.2.0`) and `CHANGELOG.md` `[0.3.0]`/`[0.3.1]` entries (added by R1; verify present).
+-- Post-merge fresh gate receipt at the merged SHA: recorded above (§7 record, R1 session provenance).
++- Pre-tag hygiene gate (owner checklist A8) — **EXECUTED before tagging**: `pyproject.toml` bumped to `0.3.1` and `CHANGELOG.md` `[0.3.0]`/`[0.3.1]` entries added in commit `0f1abeb` (this tag's target); verified present in the tagged tree.
++- Post-merge fresh validation at the merged SHA `958d948`: §7 record above (R1 session provenance).
+ 
