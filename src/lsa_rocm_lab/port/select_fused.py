@@ -20,14 +20,15 @@ tensor and its 13 elementwise launches. The walk loop, its masks, the
 window/sink tail (``_append_window_and_sink``) and the early budget are
 upstream's, imported unmodified - the pinned upstream is never edited.
 
-Equivalence is pinned byte-exactly against the v0.3.1 reference chain by
+Equivalence is pinned byte-exactly against the reference chain by
 tests/test_select_fusion.py (ties, EMPTY keys, k == width, short rows, ragged
 rows, window/sink boundaries, non-power-of-two widths, production widths);
 the wide-row sampled listing (``columns > 4 * top_p``) is NOT replicated and
 falls back loudly to the length-respecting pack+topk (upstream ``TopK.best()``
-semantics) - never a silent blanket path, and never the port reference chain,
-whose own wide-row behavior reads uninitialized listing slots (pre-existing,
-unreachable at benchmark shapes; see MEASURED_SELECT_FUSION.md §known-issues).
+semantics - unlisted slots never read) - never a silent blanket path. Since
+``best_first_keys`` applies the same ``~listed`` mask (the pre-existing
+uninitialized-slot defect is FIXED, tests/test_select_wide_adversarial.py),
+the fallback and the fixed reference chain are byte-equal on wide shapes too.
 """
 
 import warnings
@@ -97,17 +98,14 @@ def select_topk_scores(scores: torch.Tensor, lengths: torch.Tensor, top_p: int) 
         # The sampled-listing contract is outside the fused kernel (no benchmark or
         # production shape reaches it: the ladder tops out at columns == 4*top_p).
         # Deliberate, visible fallback: the length-respecting best-k of the packed
-        # row - what upstream's TopK.best() computes (masked_fill ~listed EMPTY).
-        # NOTE this intentionally does NOT reproduce the port's reference chain for
-        # such rows: the reference's best_first_keys (pipeline.py) drops upstream's
-        # ~listed mask, so on a wide sampled listing it reads uninitialized key-buffer
-        # slots - a pre-existing latent divergence from upstream, unreachable at every
-        # benchmark shape (columns <= 4*top_p takes the whole path, which packs every
-        # column). Documented in docs/v0.4.0/MEASURED_SELECT_FUSION.md §known-issues.
+        # row - what upstream's TopK.best() computes (unlisted slots never read).
+        # best_first_keys now applies the same ~listed mask, so this fallback and
+        # the fixed reference chain agree byte-exactly here (pinned by
+        # tests/test_select_wide_adversarial.py).
         warnings.warn(
             f"select_topk_scores: {columns} columns > {WHOLE_FACTOR} * top_p {top_p} "
             "- sampled listing contract, using the length-respecting pack+topk "
-            "(upstream TopK.best() semantics, NOT the port's reference chain)",
+            "(upstream TopK.best() semantics)",
             stacklevel=2,
         )
         from lsa.core.kernels.triton import keys as keys_mod
@@ -242,11 +240,17 @@ def expand_in_order_from_keys(
         raise ValueError(f"expand_in_order_from_keys is a ROCm kernel, got device {ordered_keys.device}")
     top_p = ordered_keys.size(1)
     bucket_cap = bucket_members.size(1)
+    decoding = ordered_keys.size(0) <= 32
+    tile = max(1, (4096 if decoding else 1024) // bucket_cap)
+    if (tile * bucket_cap) & (tile * bucket_cap - 1):
+        raise ValueError(
+            f"bucket_cap {bucket_cap} yields a non-power-of-two walk tile {tile * bucket_cap} "
+            "(Triton arange constraint, the same one upstream's _expand_in_order carries) - "
+            "use a power-of-two bucket_cap (production: 16)"
+        )
     width = top_k + window_size + sink_size
     out = torch.empty(ordered_keys.size(0), width, device=ordered_keys.device, dtype=torch.int32)
     lengths = torch.empty(ordered_keys.size(0), device=ordered_keys.device, dtype=torch.int32)
-    decoding = ordered_keys.size(0) <= 32
-    tile = max(1, (4096 if decoding else 1024) // bucket_cap)
     _expand_in_order_keys[(ordered_keys.size(0),)](
         ordered_keys,
         bucket_members,

@@ -96,8 +96,8 @@ def _reference_ordered(scores: torch.Tensor, lengths: torch.Tensor, top_p: int) 
     from lsa.core.kernels.triton import top_k as triton_top_k
 
     listing = triton_top_k.TopK(top_p, exact=False)
-    keys, _ = listing.listed(scores, lengths)
-    return pipeline.best_first_keys(keys, top_p)
+    keys, listed = listing.listed(scores, lengths)
+    return pipeline.best_first_keys(keys, top_p, counts=listed)
 
 
 def _eq_k2(got: torch.Tensor, want: torch.Tensor) -> bool:

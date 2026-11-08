@@ -26,7 +26,7 @@ from lsa_rocm_lab.port import (
     triton_ward,
 )
 from lsa_rocm_lab.port.read_kernel_tiled import sparse_read_auto as sparse_read
-from lsa.core.kernels.triton.keys import unpack_ids
+from lsa.core.kernels.triton.keys import EMPTY, unpack_ids
 
 
 @dataclass(frozen=True)
@@ -186,7 +186,7 @@ def visible_counts(positions: torch.Tensor, buckets: Buckets, config: PortConfig
     return (positions // config.cluster_block_size * config.block_bucket_count).clamp_max(buckets.rows).int()
 
 
-def best_first_keys(keys: torch.Tensor, top_p: int) -> torch.Tensor:
+def best_first_keys(keys: torch.Tensor, top_p: int, counts: torch.Tensor | None = None) -> torch.Tensor:
     """The best ``top_p`` packed keys per row, best first - topk, not a full sort.
 
     Upstream's pack is unique per column (score bits high, ``0x7FFFFFFF - column``
@@ -196,8 +196,21 @@ def best_first_keys(keys: torch.Tensor, top_p: int) -> torch.Tensor:
     and left a strided slice for the unpack - together ~19% of the prefill
     select's profiled cost (docs/OPTIMIZATION_v0.3.md b). Equivalence is pinned
     by tests/test_select_topk.py on tied scores, EMPTY keys and k == width.
+
+    ``counts`` applies upstream ``TopK.best()``'s ``~listed`` mask: on a sampled
+    listing (``columns > 4 * top_p``) the slots at or past a row's count are
+    key-buffer memory the listing kernels never wrote, and must never be read -
+    masked to EMPTY (int64 min, sorts last) exactly as upstream does before its
+    top-k. On the whole path every slot IS written (EMPTY past the row's length)
+    and ``counts`` equals ``lengths``, so the mask is a no-op there and the
+    v0.3.1 oracle's outputs are byte-frozen (pinned by
+    tests/test_select_wide_adversarial.py). Callers holding a listing's counts
+    MUST pass them; ``None`` keeps the raw top-k for whole-path inputs only.
     """
     k = min(top_p, keys.shape[1])
+    if counts is not None:
+        listed = torch.arange(keys.shape[1], device=keys.device)[None, :] < counts[:, None]
+        keys = keys.masked_fill(~listed, EMPTY)
     return torch.topk(keys, k=k, dim=1, sorted=True).values
 
 
@@ -238,8 +251,8 @@ def flat_select_reference(
     top_k = config.top_k if top_k is None else top_k
     scores, counts = _production_scores(index_queries, positions, buckets, config, score_dtype)
     listing = triton_top_k.TopK(config.top_p, exact=False)
-    keys, _ = listing.listed(scores, counts)
-    picked = unpack_ids(best_first_keys(keys, config.top_p))
+    keys, listed = listing.listed(scores, counts)
+    picked = unpack_ids(best_first_keys(keys, config.top_p, counts=listed))
     return triton_expansion.expand_in_order(
         picked, buckets.members, positions.int(), config.window_size, config.sink_size, top_k
     )
@@ -282,8 +295,8 @@ def flat_select(
         )
     if impl == "fused_unpack":
         listing = triton_top_k.TopK(config.top_p, exact=False)
-        keys, _ = listing.listed(scores, counts)
-        ordered = best_first_keys(keys, config.top_p)
+        keys, listed = listing.listed(scores, counts)
+        ordered = best_first_keys(keys, config.top_p, counts=listed)
         return select_fused.expand_in_order_from_keys(
             ordered, buckets.members, positions.int(), config.window_size, config.sink_size, top_k
         )
