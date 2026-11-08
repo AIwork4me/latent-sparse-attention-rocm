@@ -46,20 +46,34 @@ from lsa_rocm_lab.port.bench import sync  # noqa: E402
 from transformers import AutoModelForCausalLM, AutoTokenizer  # noqa: E402
 from transformers.modeling_utils import ALL_ATTENTION_FUNCTIONS  # noqa: E402
 
-MODEL_ID = "Qwen/Qwen3-0.6B"
+MODELS = {
+    "tinyllama": {
+        "id": "TinyLlama/TinyLlama-1.1B-Chat-v1.0", "license": "Apache-2.0",
+        "glob": "~/.cache/huggingface/hub/models--TinyLlama--TinyLlama-1.1B-Chat-v1.0/snapshots/*/config.json",
+        "index_dim": 256, "probe_layer": 11,
+        # full-rope; full-dim regroup (RotaryLayout("none") case), NO trained map
+    },
+    "qwen3": {
+        "id": "Qwen/Qwen3-0.6B", "license": "Apache-2.0",
+        "glob": "~/.cache/huggingface/hub/models--Qwen--Qwen3-0.6B/snapshots/*/config.json",
+        "index_dim": 1024, "probe_layer": 14,
+        # EXCEEDS the Ward kernel's pow2<=256 index_dim - recorded BLOCKED for zero-training
+        # full-dim regroup; upstream solves this with a TRAINED [Hkv*dh -> <=256] map.
+    },
+}
 LSA_IMPL_NAME = "lsa_rocm"
 # per-arm (top_p, top_k): full selects everything (>= ctx), 1024 = design default, 256 = sparse point
 ARMS = {"dense": None, "lsa_full": (4096, 16384), "lsa_1024": (1024, 4096), "lsa_256": (256, 4096)}
 
 ACTIVE = {"top_p": 1024, "top_k": 4096, "ctx_hint": 2048}
 STATS = {"build_ms": [], "select_ms": [], "read_ms": [], "calls": 0}
+MODEL = {"key": "tinyllama"}
 
 
 def model_cache_path():
-    cands = glob.glob(os.path.expanduser(
-        "~/.cache/huggingface/hub/models--Qwen--Qwen3-0.6B/snapshots/*/config.json"))
+    cands = glob.glob(os.path.expanduser(MODELS[MODEL["key"]]["glob"]))
     if not cands:
-        raise FileNotFoundError("Qwen3-0.6B not in local HF cache")
+        raise FileNotFoundError(f"{MODEL['key']} not in local HF cache")
     return str(Path(cands[0]).parent)
 
 
@@ -75,18 +89,29 @@ def lsa_rocm_attention(module, query, key, value, attention_mask, scaling=1.0,
         raise ValueError("M3 harness: batch-1 only")
     B, Hq, Tq, D = query.shape
     _, Hkv, T, _ = key.shape
+    # PORT LIMITATION (recorded M3 finding): build_buckets_gpu needs T >= cluster_block_size
+    # (512) - chunked-prefill tails and early decode steps fall below it. Fallback: dense
+    # causal attention, which select-everything is mathematically equal to (probe: cosine
+    # 0.9999973). Counted and reported; never silent.
+    if T < 512:
+        STATS["short_t_fallback"] = STATS.get("short_t_fallback", 0) + 1
+        return eager_dense(module, query, key, value, None, scaling=scaling)
+    if Tq == 0:  # transformers internal empty-step call (no math to do)
+        return query.new_empty(B, 0, Hq * D), None
     cfg = config_for(ACTIVE["ctx_hint"], top_p=ACTIVE["top_p"], top_k=ACTIVE["top_k"])
 
-    # index space from the model's own heads (upstream regroup: [B,H,T,D] -> [B,T,Hkv*D] fp32 unit rows)
+    # index space from the model's own heads (upstream regroup expects [B,H,T,dh] -
+    # exactly transformers' layout - and returns [B,T,Hkv*dh] fp32 unit rows)
     t0 = time.perf_counter()
-    iq, ik = regroup(query.transpose(1, 2), key.transpose(1, 2))
+    iq, ik = regroup(query, key)
     buckets = pipeline.build_buckets_gpu(ik[0], cfg)
     sync()
     STATS["build_ms"].append((time.perf_counter() - t0) * 1000)
 
-    # queries at the tail: prefill Tq==T -> 0..T-1; decode Tq==1 -> [T-1]
+    # queries sit at the tail of the sequence: positions T-Tq..T-1; iq already has
+    # exactly the Tq query rows (prefill Tq==T -> 0..T-1, decode Tq==1 -> [T-1])
     positions = torch.arange(T - Tq, T, device=query.device)
-    iq_rows = iq[0, T - Tq:, :].contiguous()
+    iq_rows = iq[0].contiguous()
 
     os.environ["LSA_SELECT_IMPL"] = os.environ.get("M3_SELECT_IMPL", "reference")
     t0 = time.perf_counter()
@@ -119,7 +144,8 @@ def eager_dense(module, query, key, value, attention_mask, scaling=1.0, dropout=
 
 def load_model(path, attn_impl):
     m = AutoModelForCausalLM.from_pretrained(
-        path, torch_dtype=torch.bfloat16, attn_implementation=attn_impl, device_map="cuda")
+        path, torch_dtype=torch.bfloat16, attn_implementation=attn_impl)
+    m = m.cuda()
     m.eval()
     return m
 
@@ -142,7 +168,7 @@ def corpus_windows(tok, window, n, seed=424243):
 def run_probe(model, tok):
     """Single-mid-layer numerical check: LSA select-everything == dense causal attention."""
     torch.manual_seed(424243)
-    layer = model.model.layers[14].self_attn
+    layer = model.model.layers[MODELS[MODEL["key"]]["probe_layer"]].self_attn
     Hq = model.config.num_attention_heads
     Hkv = model.config.num_key_value_heads
     D = layer.head_dim
@@ -173,12 +199,12 @@ def run_ppl(model, windows):
 
 
 @torch.no_grad()
-def run_niah(model, tok, ctx_len=2048, n_cases=5):
+def run_niah(model, tok, ctx_len=1792, n_cases=5):
     """PILOT_ONLY needle-in-haystack: one needle buried in wikitext filler, ask for it."""
     import pyarrow.parquet as pq
     snap = glob.glob(os.path.expanduser(
         "~/.cache/huggingface/hub/datasets--Salesforce--wikitext/snapshots/*/wikitext-2-raw-v1/test-*.parquet"))
-    paras = [row["text"].as_py() for row in pq.read_table(snap[0]).to_pylist() if len(row["text"].as_py()) > 200]
+    paras = [rec["text"] for rec in pq.read_table(snap[0]).to_pylist() if len(rec["text"]) > 200]
     results = []
     for case in range(n_cases):
         magic = 1000 + case * 111
@@ -202,6 +228,7 @@ def run_niah(model, tok, ctx_len=2048, n_cases=5):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--model", default="tinyllama", choices=list(MODELS))
     ap.add_argument("--modes", default="probe,ppl,consistency")
     ap.add_argument("--window", type=int, default=2048)
     ap.add_argument("--n-windows", type=int, default=12)
@@ -210,6 +237,7 @@ def main():
     ap.add_argument("--out", type=Path, required=True)
     args = ap.parse_args()
     assert torch.cuda.is_available() and torch.version.hip
+    MODEL["key"] = args.model
 
     path = model_cache_path()
     ALL_ATTENTION_FUNCTIONS[LSA_IMPL_NAME] = lsa_rocm_attention
@@ -219,9 +247,10 @@ def main():
         "run_id": datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ"),
         "created_utc": datetime.now(timezone.utc).isoformat(),
         "harness": "scripts/m3_model_integration.py (overnight_v1 M3)",
-        "model": MODEL_ID, "model_path": path,
+        "model": MODELS[MODEL["key"]]["id"], "model_path": path,
         "model_revision": Path(path).name,
-        "license": "Apache-2.0",
+        "index_dim": MODELS[MODEL["key"]]["index_dim"],
+        "license": MODELS[MODEL["key"]]["license"],
         "upstream_sha": upstream_sha(),
         "production_code_sha": subprocess.run(["git", "rev-parse", "HEAD"], cwd=REPO,
                                               capture_output=True, text=True).stdout.strip(),
@@ -303,7 +332,7 @@ def main():
                 model.config._attn_implementation = "eager"
             else:
                 model.config._attn_implementation = LSA_IMPL_NAME
-                ACTIVE.update({"top_p": ARMS[arm][0], "top_k": ARMS[arm][1], "ctx_hint": args.window})
+                ACTIVE.update({"top_p": ARMS[arm][0], "top_k": ARMS[arm][1], "ctx_hint": 1792})
             res[arm] = run_niah(model, tok, n_cases=args.niah_cases)
             print(f"niah[{arm}]: {res[arm]['hits']}/{res[arm]['n']}", flush=True)
         receipt["results"]["niah"] = res
