@@ -1282,6 +1282,865 @@
         "torch_reserved_gib": 2.33
       },
       "status": "PASS"
+    },
+    {
+      "dtype": "bf16",
+      "context": 131072,
+      "lane": "prefill",
+      "columns_est": 17024,
+      "phases": [
+        {
+          "phase": "prefill",
+          "rows": 131072,
+          "oracle_mode": "monolithic_reference",
+          "fused_exact": true,
+          "fused_deterministic": true,
+          "stages": {
+            "select": {
+              "stage": "select",
+              "fused_first_call_ms": 2480.8935879264027,
+              "mode": "interleaved_pair",
+              "reference": {
+                "p50_ms": 516.4514019852504,
+                "p95_ms": 728.7203409941867,
+                "min_ms": 497.62724293395877,
+                "max_ms": 728.7203409941867,
+                "samples_ms": [
+                  514.236035,
+                  521.707402,
+                  510.306073,
+                  619.347619,
+                  512.617872,
+                  515.560034,
+                  501.977015,
+                  522.146289,
+                  515.611036,
+                  497.627243,
+                  517.291768,
+                  512.320263,
+                  527.505089,
+                  501.013006,
+                  510.837,
+                  536.215596,
+                  728.720341,
+                  710.755932,
+                  520.891902,
+                  637.780944
+                ]
+              },
+              "fused": {
+                "p50_ms": 2440.9421300515532,
+                "p95_ms": 2901.227595983073,
+                "min_ms": 2348.101143958047,
+                "max_ms": 2901.227595983073,
+                "samples_ms": [
+                  2588.189021,
+                  2495.475387,
+                  2431.027328,
+                  2348.101144,
+                  2438.439547,
+                  2375.610023,
+                  2383.424806,
+                  2471.478879,
+                  2376.30443,
+                  2467.510886,
+                  2398.157943,
+                  2391.606232,
+                  2354.790084,
+                  2443.444713,
+                  2901.227596,
+                  2766.465033,
+                  2763.118808,
+                  2572.274247,
+                  2496.974203,
+                  2398.053122
+                ]
+              },
+              "speedup_p50": 0.21157871611415172,
+              "launches_reference": 65.0,
+              "launches_fused": 129.0,
+              "peak_alloc_mib": 70305.1,
+              "peak_reserved_mib": 92504.0
+            },
+            "select_read": {
+              "stage": "select_read",
+              "fused_first_call_ms": 4238.77752001863,
+              "mode": "interleaved_pair",
+              "reference": {
+                "p50_ms": 2407.6860874774866,
+                "p95_ms": 2762.2876269742846,
+                "min_ms": 2327.928564976901,
+                "max_ms": 2762.2876269742846,
+                "samples_ms": [
+                  2422.167539,
+                  2343.978352,
+                  2357.230388,
+                  2327.928565,
+                  2363.815575,
+                  2441.541821,
+                  2372.652859,
+                  2442.874552,
+                  2509.568437,
+                  2510.021878,
+                  2762.287627,
+                  2402.802237,
+                  2359.75758,
+                  2628.377502,
+                  2371.41108,
+                  2357.491453,
+                  2370.927824,
+                  2646.855015,
+                  2412.569938,
+                  2495.510114
+                ]
+              },
+              "fused": {
+                "p50_ms": 4296.224863501266,
+                "p95_ms": 4561.868295073509,
+                "min_ms": 4167.2554049873725,
+                "max_ms": 4561.868295073509,
+                "samples_ms": [
+                  4224.047302,
+                  4203.125106,
+                  4196.210132,
+                  4449.045804,
+                  4369.89815,
+                  4247.851613,
+                  4526.192994,
+                  4357.95579,
+                  4319.874755,
+                  4226.224621,
+                  4310.884708,
+                  4356.8752,
+                  4167.255405,
+                  4281.565019,
+                  4182.732961,
+                  4426.528328,
+                  4243.356085,
+                  4277.619011,
+                  4327.935142,
+                  4561.868295
+                ]
+              },
+              "speedup_p50": 0.5604190106370063,
+              "launches_reference": 68.0,
+              "launches_fused": 132.0,
+              "peak_alloc_mib": 70305.1,
+              "peak_reserved_mib": 92376.0
+            }
+          },
+          "status": "PASS"
+        }
+      ],
+      "mem_before": {
+        "vram_free_gib": 88.28,
+        "vram_total_gib": 100.0,
+        "mem_available_gib": 83.93,
+        "torch_reserved_gib": 2.33
+      },
+      "estimate_gib": {
+        "reference": 29.5,
+        "fused": 10.88
+      },
+      "reference_arm": "RUN",
+      "mem_after": {
+        "vram_free_gib": 80.4,
+        "vram_total_gib": 100.0,
+        "mem_available_gib": 80.62,
+        "torch_reserved_gib": 10.21
+      },
+      "status": "PASS"
+    },
+    {
+      "dtype": "bf16",
+      "context": 196608,
+      "lane": "decode",
+      "columns_est": 25216,
+      "phases": [
+        {
+          "phase": "decode_b1",
+          "rows": 1,
+          "oracle_mode": "monolithic_reference",
+          "fused_exact": true,
+          "fused_deterministic": true,
+          "stages": {
+            "select": {
+              "stage": "select",
+              "fused_first_call_ms": 0.5667569348588586,
+              "mode": "interleaved_pair",
+              "reference": {
+                "p50_ms": 0.25694898795336485,
+                "p95_ms": 0.37836201954633,
+                "min_ms": 0.2384090330451727,
+                "max_ms": 0.37836201954633,
+                "samples_ms": [
+                  0.378362,
+                  0.268315,
+                  0.349217,
+                  0.257505,
+                  0.245913,
+                  0.275168,
+                  0.250672,
+                  0.24985,
+                  0.355559,
+                  0.256393,
+                  0.254388,
+                  0.316375,
+                  0.267203,
+                  0.261552,
+                  0.245903,
+                  0.247246,
+                  0.238409,
+                  0.278194,
+                  0.247025,
+                  0.24449
+                ]
+              },
+              "fused": {
+                "p50_ms": 0.3032355452887714,
+                "p95_ms": 0.47534401528537273,
+                "min_ms": 0.29434298630803823,
+                "max_ms": 0.47534401528537273,
+                "samples_ms": [
+                  0.45744,
+                  0.436401,
+                  0.349157,
+                  0.29726,
+                  0.380175,
+                  0.30822,
+                  0.37748,
+                  0.298401,
+                  0.320082,
+                  0.301828,
+                  0.326664,
+                  0.475344,
+                  0.3029,
+                  0.295446,
+                  0.298171,
+                  0.295867,
+                  0.296808,
+                  0.303571,
+                  0.296198,
+                  0.294343
+                ]
+              },
+              "speedup_p50": 0.8473577453087572,
+              "launches_reference": 47.0,
+              "launches_fused": 66.0,
+              "peak_alloc_mib": 851.3,
+              "peak_reserved_mib": 2262.0
+            },
+            "select_read": {
+              "stage": "select_read",
+              "fused_first_call_ms": 0.6330210017040372,
+              "mode": "interleaved_pair",
+              "reference": {
+                "p50_ms": 0.343340914696455,
+                "p95_ms": 0.5190769443288445,
+                "min_ms": 0.3332069609314203,
+                "max_ms": 0.5190769443288445,
+                "samples_ms": [
+                  0.394793,
+                  0.347945,
+                  0.519077,
+                  0.353645,
+                  0.341773,
+                  0.336603,
+                  0.339279,
+                  0.374114,
+                  0.344909,
+                  0.337225,
+                  0.347033,
+                  0.33502,
+                  0.347404,
+                  0.333207,
+                  0.356822,
+                  0.347544,
+                  0.341232,
+                  0.334178,
+                  0.334329,
+                  0.337665
+                ]
+              },
+              "fused": {
+                "p50_ms": 0.4073765594512224,
+                "p95_ms": 0.47472293954342604,
+                "min_ms": 0.3910759696736932,
+                "max_ms": 0.47472293954342604,
+                "samples_ms": [
+                  0.400944,
+                  0.474723,
+                  0.473701,
+                  0.404832,
+                  0.397849,
+                  0.407707,
+                  0.42536,
+                  0.410563,
+                  0.418066,
+                  0.399081,
+                  0.400012,
+                  0.407046,
+                  0.404001,
+                  0.416934,
+                  0.408158,
+                  0.397408,
+                  0.4095,
+                  0.391076,
+                  0.418568,
+                  0.394121
+                ]
+              },
+              "speedup_p50": 0.8428096971484321,
+              "launches_reference": 50.0,
+              "launches_fused": 69.0,
+              "peak_alloc_mib": 582.6,
+              "peak_reserved_mib": 2260.0
+            }
+          },
+          "status": "PASS"
+        },
+        {
+          "phase": "decode_ragged",
+          "rows": 32,
+          "oracle_mode": "monolithic_reference",
+          "fused_exact": true,
+          "fused_deterministic": true,
+          "stages": {
+            "select": {
+              "stage": "select",
+              "fused_first_call_ms": 0.820052926428616,
+              "mode": "interleaved_pair",
+              "reference": {
+                "p50_ms": 0.3639600472524762,
+                "p95_ms": 0.882380991242826,
+                "min_ms": 0.3385269083082676,
+                "max_ms": 0.882380991242826,
+                "samples_ms": [
+                  0.366039,
+                  0.882381,
+                  0.369525,
+                  0.375456,
+                  0.364506,
+                  0.338527,
+                  0.343827,
+                  0.344709,
+                  0.347203,
+                  0.347564,
+                  0.355369,
+                  0.349378,
+                  0.404191,
+                  0.36683,
+                  0.368293,
+                  0.364857,
+                  0.363414,
+                  0.370077,
+                  0.358685,
+                  0.355158
+                ]
+              },
+              "fused": {
+                "p50_ms": 0.6199264898896217,
+                "p95_ms": 1.0613680351525545,
+                "min_ms": 0.5759740015491843,
+                "max_ms": 1.0613680351525545,
+                "samples_ms": [
+                  0.949877,
+                  0.655404,
+                  0.655243,
+                  0.618594,
+                  0.594589,
+                  0.575974,
+                  0.582105,
+                  0.580913,
+                  0.582245,
+                  0.597965,
+                  0.621259,
+                  1.061368,
+                  0.651897,
+                  0.629284,
+                  0.643792,
+                  0.62159,
+                  0.628031,
+                  0.604418,
+                  0.601993,
+                  0.61664
+                ]
+              },
+              "speedup_p50": 0.5871019438405988,
+              "launches_reference": 47.0,
+              "launches_fused": 71.0,
+              "peak_alloc_mib": 606.5,
+              "peak_reserved_mib": 2260.0
+            },
+            "select_read": {
+              "stage": "select_read",
+              "fused_first_call_ms": 1.4996021054685116,
+              "mode": "interleaved_pair",
+              "reference": {
+                "p50_ms": 1.062073977664113,
+                "p95_ms": 1.3035529991611838,
+                "min_ms": 1.0392260737717152,
+                "max_ms": 1.3035529991611838,
+                "samples_ms": [
+                  1.077447,
+                  1.303553,
+                  1.059113,
+                  1.064233,
+                  1.084501,
+                  1.05248,
+                  1.066086,
+                  1.051028,
+                  1.068902,
+                  1.054284,
+                  1.05756,
+                  1.200008,
+                  1.059915,
+                  1.057019,
+                  1.133593,
+                  1.039226,
+                  1.064363,
+                  1.045647,
+                  1.074452,
+                  1.058301
+                ]
+              },
+              "fused": {
+                "p50_ms": 1.3519845088012516,
+                "p95_ms": 1.4494969509541988,
+                "min_ms": 1.3270470080897212,
+                "max_ms": 1.4494969509541988,
+                "samples_ms": [
+                  1.37647,
+                  1.355591,
+                  1.384656,
+                  1.377763,
+                  1.350852,
+                  1.349369,
+                  1.389094,
+                  1.351473,
+                  1.338479,
+                  1.35486,
+                  1.34968,
+                  1.449497,
+                  1.338569,
+                  1.352496,
+                  1.37633,
+                  1.342687,
+                  1.351212,
+                  1.367743,
+                  1.327047,
+                  1.343558
+                ]
+              },
+              "speedup_p50": 0.7855666768000247,
+              "launches_reference": 50.0,
+              "launches_fused": 74.0,
+              "peak_alloc_mib": 606.5,
+              "peak_reserved_mib": 2260.0
+            }
+          },
+          "status": "PASS"
+        }
+      ],
+      "mem_before": {
+        "vram_free_gib": 80.4,
+        "vram_total_gib": 100.0,
+        "mem_available_gib": 80.55,
+        "torch_reserved_gib": 10.21
+      },
+      "estimate_gib": {
+        "reference": 0.72,
+        "fused": 0.72
+      },
+      "reference_arm": "RUN",
+      "mem_after": {
+        "vram_free_gib": 88.38,
+        "vram_total_gib": 100.0,
+        "mem_available_gib": 87.7,
+        "torch_reserved_gib": 2.21
+      },
+      "status": "PASS"
+    },
+    {
+      "dtype": "bf16",
+      "context": 196608,
+      "lane": "prefill",
+      "columns_est": 25216,
+      "phases": [
+        {
+          "phase": "prefill",
+          "rows": 196608,
+          "status": "OOM",
+          "error": "OutOfMemoryError: CUDA out of memory. Tried to allocate 36.00 GiB. GPU 0 has a total capacity of 100.00 GiB of which 26.50 GiB is free. Of the allocated memory 62.56 GiB is allocated by PyTorch, and 1.52 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_A"
+        }
+      ],
+      "mem_before": {
+        "vram_free_gib": 88.38,
+        "vram_total_gib": 100.0,
+        "mem_available_gib": 87.7,
+        "torch_reserved_gib": 2.21
+      },
+      "estimate_gib": {
+        "reference": 62.12,
+        "fused": 22.19
+      },
+      "reference_arm": "RUN",
+      "mem_after": {
+        "vram_free_gib": 44.5,
+        "vram_total_gib": 100.0,
+        "mem_available_gib": 43.75,
+        "torch_reserved_gib": 46.09
+      },
+      "status": "FAILED"
+    },
+    {
+      "dtype": "bf16",
+      "context": 262144,
+      "lane": "decode",
+      "columns_est": 33408,
+      "phases": [
+        {
+          "phase": "decode_b1",
+          "rows": 1,
+          "oracle_mode": "monolithic_reference",
+          "fused_exact": true,
+          "fused_deterministic": true,
+          "stages": {
+            "select": {
+              "stage": "select",
+              "fused_first_call_ms": 0.6455739494413137,
+              "mode": "interleaved_pair",
+              "reference": {
+                "p50_ms": 0.25534554151818156,
+                "p95_ms": 0.46525499783456326,
+                "min_ms": 0.24074292741715908,
+                "max_ms": 0.46525499783456326,
+                "samples_ms": [
+                  0.290256,
+                  0.269417,
+                  0.259619,
+                  0.256773,
+                  0.262243,
+                  0.277272,
+                  0.253918,
+                  0.465255,
+                  0.279426,
+                  0.251633,
+                  0.368243,
+                  0.251193,
+                  0.253608,
+                  0.247075,
+                  0.242216,
+                  0.248157,
+                  0.269117,
+                  0.242707,
+                  0.240743,
+                  0.253547
+                ]
+              },
+              "fused": {
+                "p50_ms": 0.3226975095458329,
+                "p95_ms": 0.4216430243104696,
+                "min_ms": 0.306806992739439,
+                "max_ms": 0.4216430243104696,
+                "samples_ms": [
+                  0.355609,
+                  0.347364,
+                  0.328228,
+                  0.324721,
+                  0.331995,
+                  0.315504,
+                  0.421643,
+                  0.31317,
+                  0.32967,
+                  0.359316,
+                  0.314903,
+                  0.316676,
+                  0.320052,
+                  0.323028,
+                  0.322367,
+                  0.310154,
+                  0.335472,
+                  0.320213,
+                  0.314201,
+                  0.306807
+                ]
+              },
+              "speedup_p50": 0.7912845124759623,
+              "launches_reference": 47.0,
+              "launches_fused": 66.0,
+              "peak_alloc_mib": 863.9,
+              "peak_reserved_mib": 2260.0
+            },
+            "select_read": {
+              "stage": "select_read",
+              "fused_first_call_ms": 0.7184019777923822,
+              "mode": "interleaved_pair",
+              "reference": {
+                "p50_ms": 0.34242949914187193,
+                "p95_ms": 0.5453260382637382,
+                "min_ms": 0.32768596429377794,
+                "max_ms": 0.5453260382637382,
+                "samples_ms": [
+                  0.357643,
+                  0.339158,
+                  0.338638,
+                  0.333707,
+                  0.339499,
+                  0.342214,
+                  0.346031,
+                  0.340721,
+                  0.342645,
+                  0.344589,
+                  0.337064,
+                  0.327686,
+                  0.545326,
+                  0.348946,
+                  0.505512,
+                  0.445538,
+                  0.340601,
+                  0.342755,
+                  0.337535,
+                  0.350019
+                ]
+              },
+              "fused": {
+                "p50_ms": 0.4201404517516494,
+                "p95_ms": 0.5115619860589504,
+                "min_ms": 0.4061940126121044,
+                "max_ms": 0.5115619860589504,
+                "samples_ms": [
+                  0.46738,
+                  0.432174,
+                  0.423357,
+                  0.410883,
+                  0.411013,
+                  0.415903,
+                  0.425661,
+                  0.4201,
+                  0.406194,
+                  0.410803,
+                  0.412146,
+                  0.511562,
+                  0.430951,
+                  0.415401,
+                  0.429448,
+                  0.415622,
+                  0.423897,
+                  0.420181,
+                  0.425471,
+                  0.409821
+                ]
+              },
+              "speedup_p50": 0.8150357760463555,
+              "launches_reference": 50.0,
+              "launches_fused": 69.0,
+              "peak_alloc_mib": 750.1,
+              "peak_reserved_mib": 2260.0
+            }
+          },
+          "status": "PASS"
+        },
+        {
+          "phase": "decode_ragged",
+          "rows": 32,
+          "oracle_mode": "monolithic_reference",
+          "fused_exact": true,
+          "fused_deterministic": true,
+          "stages": {
+            "select": {
+              "stage": "select",
+              "fused_first_call_ms": 1.6041580820456147,
+              "mode": "interleaved_pair",
+              "reference": {
+                "p50_ms": 0.37573702866211534,
+                "p95_ms": 0.5052009364590049,
+                "min_ms": 0.3613299923017621,
+                "max_ms": 0.5052009364590049,
+                "samples_ms": [
+                  0.425421,
+                  0.364215,
+                  0.392318,
+                  0.375777,
+                  0.374154,
+                  0.380125,
+                  0.372712,
+                  0.375667,
+                  0.36133,
+                  0.375697,
+                  0.386768,
+                  0.368925,
+                  0.368313,
+                  0.388501,
+                  0.376228,
+                  0.365958,
+                  0.505201,
+                  0.397127,
+                  0.372541,
+                  0.386457
+                ]
+              },
+              "fused": {
+                "p50_ms": 0.7565185078419745,
+                "p95_ms": 0.9389759507030249,
+                "min_ms": 0.7072309963405132,
+                "max_ms": 0.9389759507030249,
+                "samples_ms": [
+                  0.756724,
+                  0.795897,
+                  0.779897,
+                  0.761583,
+                  0.753428,
+                  0.73882,
+                  0.752977,
+                  0.756313,
+                  0.748027,
+                  0.87152,
+                  0.718332,
+                  0.716308,
+                  0.707231,
+                  0.740323,
+                  0.735293,
+                  0.762554,
+                  0.938976,
+                  0.794825,
+                  0.769457,
+                  0.764177
+                ]
+              },
+              "speedup_p50": 0.496666009842817,
+              "launches_reference": 47.0,
+              "launches_fused": 71.0,
+              "peak_alloc_mib": 781.8,
+              "peak_reserved_mib": 2260.0
+            },
+            "select_read": {
+              "stage": "select_read",
+              "fused_first_call_ms": 1.5407400205731392,
+              "mode": "interleaved_pair",
+              "reference": {
+                "p50_ms": 1.126359507907182,
+                "p95_ms": 1.4149720082059503,
+                "min_ms": 1.083078095689416,
+                "max_ms": 1.4149720082059503,
+                "samples_ms": [
+                  1.119096,
+                  1.104979,
+                  1.083078,
+                  1.101924,
+                  1.104118,
+                  1.263438,
+                  1.1214,
+                  1.111832,
+                  1.131319,
+                  1.107404,
+                  1.095191,
+                  1.114748,
+                  1.283736,
+                  1.271472,
+                  1.338809,
+                  1.266803,
+                  1.299705,
+                  1.338699,
+                  1.414972,
+                  1.271142
+                ]
+              },
+              "fused": {
+                "p50_ms": 1.6106860130093992,
+                "p95_ms": 2.091154921799898,
+                "min_ms": 1.4994610100984573,
+                "max_ms": 2.091154921799898,
+                "samples_ms": [
+                  1.555537,
+                  1.538475,
+                  1.504772,
+                  1.499461,
+                  1.52035,
+                  1.594461,
+                  1.521914,
+                  1.540539,
+                  1.521833,
+                  1.655515,
+                  1.512426,
+                  2.091155,
+                  1.82259,
+                  1.769379,
+                  1.925413,
+                  1.628153,
+                  1.910805,
+                  1.626911,
+                  1.822068,
+                  1.772746
+                ]
+              },
+              "speedup_p50": 0.6993042087717,
+              "launches_reference": 50.0,
+              "launches_fused": 74.0,
+              "peak_alloc_mib": 781.8,
+              "peak_reserved_mib": 2260.0
+            }
+          },
+          "status": "PASS"
+        }
+      ],
+      "mem_before": {
+        "vram_free_gib": 85.0,
+        "vram_total_gib": 100.0,
+        "mem_available_gib": 84.55,
+        "torch_reserved_gib": 5.59
+      },
+      "estimate_gib": {
+        "reference": 0.88,
+        "fused": 0.88
+      },
+      "reference_arm": "RUN",
+      "mem_after": {
+        "vram_free_gib": 88.38,
+        "vram_total_gib": 100.0,
+        "mem_available_gib": 87.68,
+        "torch_reserved_gib": 2.21
+      },
+      "status": "PASS"
+    },
+    {
+      "dtype": "bf16",
+      "context": 262144,
+      "lane": "prefill",
+      "columns_est": 33408,
+      "phases": [
+        {
+          "phase": "prefill",
+          "rows": 262144,
+          "status": "OOM",
+          "error": "OutOfMemoryError: CUDA out of memory. Tried to allocate 32.00 GiB. GPU 0 has a total capacity of 100.00 GiB of which 3.37 GiB is free. Of the allocated memory 85.39 GiB is allocated by PyTorch, and 1.83 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_AL"
+        }
+      ],
+      "mem_before": {
+        "vram_free_gib": 88.38,
+        "vram_total_gib": 100.0,
+        "mem_available_gib": 87.68,
+        "torch_reserved_gib": 2.21
+      },
+      "estimate_gib": {
+        "reference": 106.75,
+        "fused": 37.5
+      },
+      "reference_arm": "SKIPPED_PROJECTION",
+      "mem_after": {
+        "vram_free_gib": 11.37,
+        "vram_total_gib": 100.0,
+        "mem_available_gib": 10.52,
+        "torch_reserved_gib": 79.21
+      },
+      "status": "FAILED"
     }
-  ]
+  ],
+  "stop_reason": null,
+  "summary": {
+    "steps_total": 10,
+    "pass": 8,
+    "blocked": 0,
+    "oom_or_failed": 2
+  }
 }
