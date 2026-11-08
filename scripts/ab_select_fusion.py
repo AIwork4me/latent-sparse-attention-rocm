@@ -123,6 +123,8 @@ def main() -> int:
     repo = Path(__file__).resolve().parents[1]
     code_sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo,
                               capture_output=True, text=True).stdout.strip()
+    dirty = bool(subprocess.run(["git", "status", "--porcelain", "src/"], cwd=repo,
+                                capture_output=True, text=True).stdout.strip())
     run_id = args.run_id or datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     receipt = {
         "run_id": run_id,
@@ -133,6 +135,7 @@ def main() -> int:
         "hip": torch.version.hip,
         "triton": __import__("triton").__version__,
         "production_code_sha": code_sha,
+        "production_src_dirty": dirty,
         "upstream_sha": upstream_sha(),
         "seed": args.seed,
         "candidate": args.candidate,

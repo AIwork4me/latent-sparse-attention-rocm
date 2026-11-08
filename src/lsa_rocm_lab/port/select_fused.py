@@ -22,9 +22,12 @@ upstream's, imported unmodified - the pinned upstream is never edited.
 
 Equivalence is pinned byte-exactly against the v0.3.1 reference chain by
 tests/test_select_fusion.py (ties, EMPTY keys, k == width, short rows, ragged
-rows, window/sink boundaries, non-power-of-two widths, production shapes);
+rows, window/sink boundaries, non-power-of-two widths, production widths);
 the wide-row sampled listing (``columns > 4 * top_p``) is NOT replicated and
-falls back to the reference composition loudly - never a silent blanket path.
+falls back loudly to the length-respecting pack+topk (upstream ``TopK.best()``
+semantics) - never a silent blanket path, and never the port reference chain,
+whose own wide-row behavior reads uninitialized listing slots (pre-existing,
+unreachable at benchmark shapes; see MEASURED_SELECT_FUSION.md §known-issues).
 """
 
 import warnings
@@ -91,16 +94,27 @@ def select_topk_scores(scores: torch.Tensor, lengths: torch.Tensor, top_p: int) 
     """
     rows, columns = scores.shape
     if columns > WHOLE_FACTOR * top_p:
-        # The sampled-listing contract: deliberate, visible fallback to the exact
-        # reference composition (this shape never occurs in the benchmark ladder).
+        # The sampled-listing contract is outside the fused kernel (no benchmark or
+        # production shape reaches it: the ladder tops out at columns == 4*top_p).
+        # Deliberate, visible fallback: the length-respecting best-k of the packed
+        # row - what upstream's TopK.best() computes (masked_fill ~listed EMPTY).
+        # NOTE this intentionally does NOT reproduce the port's reference chain for
+        # such rows: the reference's best_first_keys (pipeline.py) drops upstream's
+        # ~listed mask, so on a wide sampled listing it reads uninitialized key-buffer
+        # slots - a pre-existing latent divergence from upstream, unreachable at every
+        # benchmark shape (columns <= 4*top_p takes the whole path, which packs every
+        # column). Documented in docs/v0.4.0/MEASURED_SELECT_FUSION.md §known-issues.
         warnings.warn(
             f"select_topk_scores: {columns} columns > {WHOLE_FACTOR} * top_p {top_p} "
-            "- sampled listing contract, using the reference pack+topk",
+            "- sampled listing contract, using the length-respecting pack+topk "
+            "(upstream TopK.best() semantics, NOT the port's reference chain)",
             stacklevel=2,
         )
         from lsa.core.kernels.triton import keys as keys_mod
 
-        ids = torch.arange(columns, device=scores.device, dtype=torch.int32).expand(rows, columns)
+        length_mask = torch.arange(columns, device=scores.device)[None, :] < lengths[:, None]
+        ids = torch.where(length_mask, torch.arange(columns, device=scores.device, dtype=torch.int32),
+                          torch.tensor(-1, device=scores.device, dtype=torch.int32))
         keys = keys_mod.pack_keys(scores, ids)
         return torch.topk(keys, k=min(top_p, columns), dim=1, sorted=True).values
     if scores.device.type != "cuda":

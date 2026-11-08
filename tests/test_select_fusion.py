@@ -69,18 +69,23 @@ def test_switch_default_is_reference(monkeypatch):
     assert pipeline.flat_select.__doc__ and "LSA_SELECT_IMPL" in pipeline.flat_select.__doc__
 
 
-def test_wide_column_fallback_matches_reference_contract():
-    """columns > 4*top_p: deliberate visible fallback; output == best keys of the pack."""
+def test_wide_column_fallback_is_length_respecting():
+    """columns > 4*top_p: deliberate visible fallback = upstream TopK.best()
+    semantics (columns past a row's length are EMPTY, never selected)."""
     torch.manual_seed(TIME)
     scores = torch.randn(4, 64)
     lengths = torch.tensor([64, 40, 8, 0], dtype=torch.int32)
     top_p = 8  # 64 > 4*8 -> fallback branch, pure torch, runs on CPU
     with pytest.warns(UserWarning, match="sampled listing"):
         got = select_fused.select_topk_scores(scores, lengths, top_p)
-    ids = torch.arange(64, dtype=torch.int32).expand(4, 64)
-    keys = keys_mod.pack_keys(scores, ids)
+    columns = torch.arange(64)
+    ids = torch.where(columns[None, :] < lengths[:, None], columns.expand(4, 64),
+                      torch.tensor(-1).expand(4, 64))
+    keys = keys_mod.pack_keys(scores, ids.int())
     want = torch.topk(keys, k=min(top_p, 64), dim=1, sorted=True).values
     assert torch.equal(got, want)
+    # the zero-visibility row must come back all EMPTY (no invisible bucket picked)
+    assert bool((got[3] == keys_mod.EMPTY).all())
 
 
 # ---------------------------------------------------------------- GPU: kernel A
@@ -150,6 +155,22 @@ def test_kernel_a_negative_and_denormal_scores(device):
     lengths = torch.full((8,), 1024, device=device, dtype=torch.int32)
     got = select_fused.select_topk_scores(scores, lengths, 256)
     want = _reference_ordered(scores, lengths, 256)
+    assert _eq_k2(got, want)
+
+
+@pytest.mark.parametrize("device", [d for d in DEVICES if d == "cuda"])
+def test_kernel_a_nan_scores_match_reference_bitcast_order(device):
+    """NaN score bits ride the same ordered_bits map in both implementations:
+    whatever order the bitcast gives, fused and reference must agree on it."""
+    torch.manual_seed(TIME + 5)
+    scores = torch.randn(4, 512, device=device)
+    scores[0, ::7] = float("nan")
+    scores[1] = float("nan")
+    scores[2, :3] = float("-0.0")
+    scores[3, ::5] = float("inf")
+    lengths = torch.full((4,), 512, device=device, dtype=torch.int32)
+    got = select_fused.select_topk_scores(scores, lengths, 128)
+    want = _reference_ordered(scores, lengths, 128)
     assert _eq_k2(got, want)
 
 
