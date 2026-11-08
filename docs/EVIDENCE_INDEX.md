@@ -1,3 +1,12 @@
+> **2026-11-08 v0.4.0 integration / release candidate evidence:** PR #7
+> merged at `6d17a7d` (fused path opt-in). The 25 committed v0.4.0
+> artifacts are indexed by `docs/v0.4.0/EVIDENCE_INDEX.md` and sealed with
+> the new, separate `evidence/v0.4.0/SHA256SUMS` manifest; all historical
+> checksums below remain unchanged. Clean-tree source `45a0ed1` memory
+> receipt and confirmation A/B live under `evidence/v0.4.0/ab/`.
+> Physical gfx1151 post-merge CI and official v0.4.0 tag/Release are pending,
+> **not** verified. PR #8 default-promotion is not merged.
+
 # EVIDENCE INDEX — pointers to receipts, hashes, sources and job URLs
 
 Latest first. Every claim in README/FINAL_REPORT/BENCHMARKS must trace to an entry here.

@@ -1,0 +1,28 @@
+# v0.4.0 evidence SHA256 manifest, generated from the merged PR #7 Git tree.
+# All paths are relative to evidence/v0.4.0/. No historical evidence or manifests rewritten.
+# Verify: cd evidence/v0.4.0 && sha256sum -c SHA256SUMS
+957eeade7282b6b7a3c7f89bdac6ed70733f1a735572f74bc24f96066189388e  ab/aggregate-fused-unpack.json
+3ea67e7d66a2d73b2f3a867b140be536b1d5fc2c2dafd4a27a4c39e73e4a4ade  ab/aggregate-fused-unpack.md
+8812d923e572042e64303aea64ad5eb9696be5d50b919525e75202f1738e961e  ab/aggregate-fused.json
+aafec9b3366cd4a1058ab1e3d72addaf6540ff0949c7b0b3fd4679fc26a86e9f  ab/aggregate-fused.md
+af2a4164a07ba391a61a412b885d299dc1c946c0ca43b6d6bd7694c53f0950fb  ab/fused-7fdb364-maskcost-s424243.json
+39e82d038493e1857497f6d9f691155ef4b60df4861edbda791b7d7d443f441d  ab/fused-final-s424243.json
+835c7335508c3afe2f677a1553586181eaf369c88c63b31709cecd235a710a8b  ab/fused-postfix-s424243.json
+4e6d78697e30e5df689dd3a88f8f753322f793113fb329cd76d80a25db1490e6  ab/fused-s20261105-rep1.json
+726b7d09fc70a90009a36316985fc9c3e8f02b50011012970565daa7721d3751  ab/fused-s20261105-rep2.json
+3398ca030b515c7b8b09a8a58c2cc6d96b70b40d779658a69ad415cf1731d9c7  ab/fused-s20261105-rep3.json
+d2ffa3191fdfe93dd77a51bbbaf9bb96ba73c19ff60b11d8f5b1d63f2e9e2f35  ab/fused-s424243-rep1.json
+207ec1a5d47e21fb6f6350da36508368798a36cce25ae82c54e79ba031715d25  ab/fused-s424243-rep2.json
+3aa31a8d4aad67bb384868232ab54bab8a0bdfc844f609c37f976aa18f972028  ab/fused-s424243-rep3.json
+2f6e6c283cc5cc0e8b7f00d75b2d7d1798df605d70a81ee121e6ce8663601075  ab/fused-s777001-rep1.json
+6f8c3892fd2e71dea9382d3c38a116f6a29fd278c69555b69f3b2d7034ec457b  ab/fused-s777001-rep2.json
+1545b808127a04dd7847a1b7d0e9a4409188e75153fde5d93692aeecb11f86d0  ab/fused-s777001-rep3.json
+8a6f035dc1014c2077c998ab024a92a8a9ca0dd73077ca2fcd58c580497976b4  ab/fused-unpack-s20261105-rep1.json
+44a63e058b82316997af5318ea04cb7934a0c7de020a6844d62fe91ed73c95ea  ab/fused-unpack-s424243-rep1.json
+df8423f55270f4bdf2bdc08c6c1fc4fe5f22e21af05ae0b4698d2fdedd00d50d  ab/fused-unpack-s777001-rep1.json
+c8f961dfcddb060b4cd4a21aa87994a037446c1be6290a375adf3c2be5a3ed2d  ab/memory-probe-superseded-dirty.json
+7efffbcb1bd4624aa154939446401fd0849d7bdcbd60a17b00f275ae316163a8  ab/memory-probe.json
+c5e16ddccb4f2c4da81a7823ac2306c66b206f21bc1b824c4840026e5eba1014  baseline/profile-cold-32k-bf16.json
+834416c7e481cd19a14c4b33431947dc324d13f72dd42c038b797fe5081a64e1  baseline/profile-warm-16k-bf16.json
+d160da859fd6d4589186fba456a8172b5de2936d1eab769bbe46fc2886ac02b9  baseline/profile-warm-32k-bf16.json
+8200be8561877aa40edb90d7e385d7b61b4a3962a50f5f7626870c4328cd3b18  baseline/select-stages-matrix.json

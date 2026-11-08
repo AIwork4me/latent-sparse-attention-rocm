@@ -1,6 +1,6 @@
 # v0.4.0 — Measured Select Fusion on ROCm gfx1151
 
-**Status: correctness-complete, measured, review-ready (Draft PR; production promotion decision at the end).**
+**Status: code INTEGRATED via PR #7 (main merge `6d17a7d`), opt-in fused path; v0.4.0 RELEASE CANDIDATE only (not tagged/published). Default promotion remains Draft PR #8, owner + GPU gated.**
 **Implementation chain `9fb32f9` (campaign) → `33d9293` (audit fixes) → `45a0ed1` (final numerical code, wide-row correctness fix + whole-path skip)** on branch `feature/v0.4.0-measured-select-fusion`; every receipt pins its own SHA. Upstream pin `5ebea732` (untouched). Baseline: v0.3.1 (`1ab0e0b`) production chain, measured unmodified (`docs/v0.4.0/BASELINE_AND_BOTTLENECKS.md`). The campaign receipts at `9fb32f9` remain applicable to `45a0ed1`: the fused kernels' code path is identical, and the reference oracle's op sequence is preserved by the provably-no-op whole-path mask skip — re-confirmed by the final-SHA receipt `fused-final-s424243.json` (§3).
 
 ## 1. What was built

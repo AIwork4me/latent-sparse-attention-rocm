@@ -39,6 +39,30 @@ dispatch, inflating every old speedup ([`docs/RESULTS_v0.2.0.md`](docs/RESULTS_v
 with documented causes — see the report), any NVIDIA paper number as a Radeon
 result, and any speedup that was not measured on this GPU.
 
+### v0.4.0 select-fusion integration (release candidate)
+
+The opt-in `LSA_SELECT_IMPL=fused` path combines packed score/top-k selection
+and fused unpacking in the upstream expansion walk. **The default remains
+`LSA_SELECT_IMPL=reference`**, retaining the v0.3.1 path until separately
+approved. This is a **stage-level** optimization, not an independently verified
+model-serving speedup.
+
+The recorded 32k BF16 gfx1151 comparison is **1.226×** for prefill
+select+read and **1.199×** for B=1 decode select+read versus the reference
+selection path; prefill selection alone is **2.96×**. A clean-tree five-sample
+peak-allocation receipt reports **959.4 MiB (41.6%)** less memory for select.
+See [measured design and scope](docs/v0.4.0/MEASURED_SELECT_FUSION.md),
+[adversarial audit](docs/reviews/V0_4_INDEPENDENT_REVIEW.md), and
+[SHA256-verified evidence](evidence/v0.4.0/SHA256SUMS).
+The version bump is an **unreleased candidate** until the owner authorizes
+a GitHub tag/Release; post-merge GPU CI on the migrated runner is also pending.
+
+To select the fused path explicitly (on supported, already configured ROCm):
+```bash
+LSA_SELECT_IMPL=fused python -m lsa_rocm_lab.port.gates
+LSA_SELECT_IMPL=reference python -m lsa_rocm_lab.port.gates  # explicit fallback
+```
+
 ## Quick start (fresh machine, nothing on the host is modified)
 
 ```bash

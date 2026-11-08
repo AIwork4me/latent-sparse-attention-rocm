@@ -1,3 +1,18 @@
+> **CURRENT STATUS — 2026-11-08 (newer than the historical log below):** PR #6 merged
+> as `518ad303` (R1.1 docs/ops + safe hosted CPU workflow); PR #7 merged
+> as `6d17a7d` (measured opt-in fused selection). The default remains
+> `LSA_SELECT_IMPL=reference`. Neither runner migration nor post-merge physical
+> gfx1151 GPU regression has occurred in this remote work session.
+> `release/v0.4.0-rc-hygiene` prepares version/CHANGELOG/25-file SHA256 manifest
+> and release notes; v0.4.0 is NOT tagged or published. PR #8 is still Draft,
+> pending release, owner approval, and actual GPU regression.
+>
+> **Owner next:** migrate the runner using `docs/r1.1/ops/migrate-runner.sh`
+> from merged main, observe all sandbox/device/Triton checks, approve a
+> fresh post-merge main GPU workflow, then retire the legacy install and
+> rotate credentials. Review the release candidate separately. Do not interpret
+> historical queued/cancelled GPU jobs as passing migration verification.
+
 # CONTINUATION — exact resume point for the next session
 
 Updated: 2026-11-08 (R1.1 post-release hygiene executed on branch `chore/r1.1-post-release-hygiene`)
