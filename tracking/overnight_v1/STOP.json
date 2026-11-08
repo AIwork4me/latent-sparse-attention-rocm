@@ -1,0 +1,13 @@
+{
+  "stop": true,
+  "reason": "NO_SAFE_WORK_REMAINS",
+  "evidence": [
+    "M1 PASS + fresh 3x3 campaign reproduced published headline on merged tree (12/12 cells no regression)",
+    "M2 PASS - 64k-256k fail-closed ladder complete, wide-path fused regression documented, OOM classified",
+    "M3 PILOT_DONE + extended (ppl <=0.007 0eltas, NIAH identical hit sets); v0.5 campaign correctly NOT claimed",
+    "M4 BLOCKED_WITH_ROOT_CAUSE (owner-gated container lane)",
+    "M6 PASS - soak 148/148 zero-leak, negative controls loud-fail",
+    "M7 packet delivered, v1.0.0 NO-GO honestly recorded",
+    "remaining work is owner-privileged (runner migration, approvals, release, PR#8) or out-of-scope engineering (trained index projections, chunked prefill, kernel work) - documented in OVERNIGHT_REPORT.md section 10"
+  ]
+}

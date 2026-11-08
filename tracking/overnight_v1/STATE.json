@@ -38,18 +38,19 @@
     "gate_commands_verified": "PASS (pytest 314/314 GPU; gates 17/17 x3; workflow guard PASS)"
   },
   "workstreams": {
-    "M1_merged_tree_gpu_qualification": "PASS - suite 314/314 GPU; 17/17 gates x3; evidence 28/28; aggregate 60/60 recomputed; single-run A/B 16k/32k PASS (receipt 9b2026b2); GO/NO-GO memo written (engineering GO, release owner-gated)",
+    "M1_merged_tree_gpu_qualification": "PASS - suite 314/314 GPU; 17/17 gates x3; evidence 28/28; aggregate 60/60 recomputed; single-run A/B 16k/32k PASS (receipt 9b2026b2); GO/NO-GO memo written (engineering GO, release owner-gated) | UPGRADED: fresh 3x3 campaign on merged tree reproduced published headline (32k prefill select 2.964x vs 2.962, s+r 1.227x vs 1.226; 12/12 cells no regression)",
     "M2_long_context_scaling_64k_256k": "PASS - ladder receipt d0bf6477: 15/15 rows byte-exact+deterministic; wide-path fused slower (0.21-1.05x) => keep reference >=64k (supports PR8 narrow scope); decode <1GiB whole ladder; prefill 18/40/70GiB @64/96/128k, 192k+ prefill OOM-classified; findings in M2_FINDINGS.md",
-    "M3_true_model_quality": "PILOT_DONE - TinyLlama-1.1B integration PROVEN (probe cosine 0.9999973, in-model fused byte-equal); ppl deltas <0.01% (pilot); NIAH 2/5==2/5==2/5 (PILOT_ONLY); defects: T>=512 bucket requirement, Ward index_dim<=256; v0.5 campaign NOT_RUN, no PASS claimed - see M3_FINDINGS.md",
+    "M3_true_model_quality": "PILOT_DONE - TinyLlama-1.1B integration PROVEN (probe cosine 0.9999973, in-model fused byte-equal); ppl deltas <0.01% (pilot); NIAH 2/5==2/5==2/5 (PILOT_ONLY); defects: T>=512 bucket requirement, Ward index_dim<=256; v0.5 campaign NOT_RUN, no PASS claimed - see M3_FINDINGS.md | extended: 48-window ppl deltas <=0.007%; NIAH 15x3 identical hit sets",
     "M4_sglang_feasibility": "BLOCKED_WITH_ROOT_CAUSE - no pre-approved gfx1151 container (docker empty, pulls forbidden), lane mismatch (ROCm 7.2.4 image vs 10.1 venv), port has no integration point, upstream lsa/sglang needs Qwen3.5-class server stack",
     "M5_e2e_serving_optimization": "NOT_STARTED",
-    "M6_reliability_repro_dx": "NOT_STARTED",
-    "M7_v1_0_0_qualification": "NOT_STARTED"
+    "M6_reliability_repro_dx": "PASS - soak 148/148 green zero-leak (64ed5426); negative controls loud-fail correct; HOW_TO_REPRODUCE_V1.md delivered",
+    "M7_v1_0_0_qualification": "DELIVERED - V100_QUALIFICATION_CHECKLIST.md: NO-GO (owner gates + quality campaign + serving unmet); packet complete, nothing published"
   },
   "claim_separation": [
     "code_implemented",
     "local_gpu_validated",
     "github_ci_validated",
     "released"
-  ]
+  ],
+  "campaign_closed_utc": "2026-11-08T17:45:00Z"
 }
