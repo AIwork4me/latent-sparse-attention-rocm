@@ -4,6 +4,8 @@ Latest first. Every claim in README/FINAL_REPORT/BENCHMARKS must trace to an ent
 
 | ID | What | Path / URL | Anchor |
 |---|---|---|---|
+| V0.4.0 | Measured select fusion (draft PR): baseline bottleneck matrix, kernel profiles, 12 interleaved A/B receipts (3 seeds × 3 process runs + F1 alternative), byte-exact 360/360, aggregation — index and integrity rules | `docs/v0.4.0/EVIDENCE_INDEX.md` → `evidence/v0.4.0/` | impl SHA `9fb32f9` |
+| R1.1 | Post-release hygiene (PR #6): release-body corrections + archive, Actions queue disposition, runner-migration validation + owner runbook, security proposal P1–P4 | `docs/r1.1/` | `BASELINE_AUDIT.md` |
 | EV-2026-11-07-J | FINAL v0.3.1 (topk select, `60c004b`) receipts: bf16+fp16 matrices, 17/17 gates, + 9-receipt seed study — 11/11 audit APPROVED, 153 comparisons recomputed | `evidence/receipts-v0.3.1-final/`, `evidence/seed-study-20261106T171352Z/` | `audit-v031.json` |
 | EV-2026-11-07-I | FINAL v0.3.0 receipts at `1e73c3a` (bf16+fp16, 17/17 gates) + 9-receipt seed study, 11/11 audit APPROVED (153 recomputed) | `evidence/receipts-v0.3.0-final/`, `evidence/seed-study-20261106T170105Z/` | `audit-final.json` |
 | EV-2026-11-07-H | T4 A/B artifact: page-batched vs per-page tree walk, set-equality-gated (batched 1.16–1.86× slower — negative result) | `evidence/receipts-v0.3.0/ab-tree-select.json` | `rows[].set_equal` |

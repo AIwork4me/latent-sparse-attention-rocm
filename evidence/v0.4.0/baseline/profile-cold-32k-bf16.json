@@ -1,0 +1,90 @@
+{
+  "mode": "cold",
+  "context": 32768,
+  "dtype": "bf16",
+  "seed": 20261105,
+  "gpu_arch": "gfx1151",
+  "stages": [
+    {
+      "stage": "index_regroup",
+      "first_call_ms": 48.65724698174745
+    },
+    {
+      "stage": "ward_cluster",
+      "first_call_ms": 9705.51964500919
+    },
+    {
+      "stage": "hierarchy_build",
+      "first_call_ms": 2065.547209000215
+    },
+    {
+      "stage": "flat_select_prefill",
+      "first_call_ms": 651.793297030963
+    },
+    {
+      "stage": "flat_select_decode",
+      "first_call_ms": 126.6306119505316
+    },
+    {
+      "stage": "tree_select_prefill",
+      "first_call_ms": 543.2993259746581
+    },
+    {
+      "stage": "tree_select_decode",
+      "first_call_ms": 4.6185830142349005
+    },
+    {
+      "stage": "dense_prefill",
+      "first_call_ms": 86.88329404685646
+    },
+    {
+      "stage": "dense_decode",
+      "first_call_ms": 16.729402006603777
+    },
+    {
+      "stage": "index_regroup",
+      "second_call_ms": 2.135123941116035
+    },
+    {
+      "stage": "ward_cluster",
+      "second_call_ms": 7.699665031395853
+    },
+    {
+      "stage": "hierarchy_build",
+      "second_call_ms": 17.00211502611637
+    },
+    {
+      "stage": "flat_select_prefill",
+      "second_call_ms": 134.92045609746128
+    },
+    {
+      "stage": "flat_select_decode",
+      "second_call_ms": 1.544464030303061
+    },
+    {
+      "stage": "tree_select_prefill",
+      "second_call_ms": 306.92427000030875
+    },
+    {
+      "stage": "tree_select_decode",
+      "second_call_ms": 4.557918990030885
+    },
+    {
+      "stage": "sparse_read_prefill_flat",
+      "first_call_ms": 453.18343699909747
+    },
+    {
+      "stage": "sparse_read_decode_flat",
+      "first_call_ms": 129.15029597934335
+    },
+    {
+      "stage": "sparse_read_prefill_tree",
+      "first_call_ms": 262.40492798388004
+    },
+    {
+      "stage": "sparse_read_decode_tree",
+      "first_call_ms": 0.4309699870646
+    }
+  ],
+  "triton_cache_dir": "/tmp/v040-triton-cold"
+}

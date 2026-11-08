@@ -1,0 +1,17 @@
+{
+  "run_id": "20261108T035559Z-memprobe",
+  "created_utc": "2026-11-08T03:55:59.023064+00:00",
+  "gpu_arch": "gfx1151",
+  "production_code_sha": "8e5e1e579085aa8df7564a3f9e18021892f0d0ff",
+  "production_src_dirty": true,
+  "upstream_sha": "5ebea732d639576d2a7579b0de40e6252f9001f5",
+  "context": 32768,
+  "dtype": "bf16",
+  "phase": "prefill_select_32768_rows",
+  "method": "torch.cuda.max_memory_allocated delta around one complete flat_select, warm (compiled) path, allocator steady; empty_cache+reset before each",
+  "impls": {
+    "reference": 2416181248,
+    "fused": 1410203648,
+    "fused_unpack": 2484076544
+  }
+}

@@ -14,6 +14,7 @@ project's, also Apache-2.0.
 """
 
 from dataclasses import dataclass, field
+import os
 
 import torch
 import torch.nn.functional as F
@@ -25,7 +26,7 @@ from lsa_rocm_lab.port import (
     triton_ward,
 )
 from lsa_rocm_lab.port.read_kernel_tiled import sparse_read_auto as sparse_read
-from lsa.core.kernels.triton.keys import unpack_ids
+from lsa.core.kernels.triton.keys import EMPTY, unpack_ids
 
 
 @dataclass(frozen=True)
@@ -185,7 +186,7 @@ def visible_counts(positions: torch.Tensor, buckets: Buckets, config: PortConfig
     return (positions // config.cluster_block_size * config.block_bucket_count).clamp_max(buckets.rows).int()
 
 
-def best_first_keys(keys: torch.Tensor, top_p: int) -> torch.Tensor:
+def best_first_keys(keys: torch.Tensor, top_p: int, counts: torch.Tensor | None = None) -> torch.Tensor:
     """The best ``top_p`` packed keys per row, best first - topk, not a full sort.
 
     Upstream's pack is unique per column (score bits high, ``0x7FFFFFFF - column``
@@ -195,26 +196,26 @@ def best_first_keys(keys: torch.Tensor, top_p: int) -> torch.Tensor:
     and left a strided slice for the unpack - together ~19% of the prefill
     select's profiled cost (docs/OPTIMIZATION_v0.3.md b). Equivalence is pinned
     by tests/test_select_topk.py on tied scores, EMPTY keys and k == width.
+
+    ``counts`` applies upstream ``TopK.best()``'s ``~listed`` mask: on a sampled
+    listing (``columns > 4 * top_p``) the slots at or past a row's count are
+    key-buffer memory the listing kernels never wrote, and must never be read -
+    masked to EMPTY (int64 min, sorts last) exactly as upstream does before its
+    top-k. On the whole path every slot IS written (EMPTY past the row's length)
+    and ``counts`` equals ``lengths``, so the mask is a no-op there and the
+    v0.3.1 oracle's outputs are byte-frozen (pinned by
+    tests/test_select_wide_adversarial.py). Callers holding a listing's counts
+    MUST pass them; ``None`` keeps the raw top-k for whole-path inputs only.
     """
     k = min(top_p, keys.shape[1])
+    if counts is not None:
+        listed = torch.arange(keys.shape[1], device=keys.device)[None, :] < counts[:, None]
+        keys = keys.masked_fill(~listed, EMPTY)
     return torch.topk(keys, k=k, dim=1, sorted=True).values
 
 
-def flat_select(
-    index_queries: torch.Tensor,
-    positions: torch.Tensor,
-    buckets: Buckets,
-    config: PortConfig,
-    top_k: int | None = None,
-    score_dtype: str = "bf16",
-) -> tuple[torch.Tensor, torch.Tensor]:
-    """Select each query's keys - the production short/medium-context composition.
-
-    The bf16 centroid GEMM with fp32 out (as the served path), upstream's Triton
-    top-k listing, a sort of the packed keys to best-first order (their int64 layout
-    is order-preserving), and upstream's Triton rank-order expansion.
-    """
-    top_k = config.top_k if top_k is None else top_k
+def _production_scores(index_queries, positions, buckets, config, score_dtype):
+    """The production scoring both select implementations share, verbatim."""
     if positions.shape[0] != index_queries.shape[0]:
         raise ValueError(
             f"a position a query: {index_queries.shape[0]} queries, {positions.shape[0]} positions"
@@ -228,12 +229,91 @@ def flat_select(
         # fp32 straight out of the GEMM, as the served path asks (a bf16 product cast
         # after costs five times as much, per upstream)
         scores = torch.mm(queries, buckets.centroids.t(), out_dtype=torch.float32)
+    return scores, counts
+
+
+def _mask_for(scores: torch.Tensor, config: PortConfig, listed: torch.Tensor) -> torch.Tensor | None:
+    """The listing counts ``best_first_keys`` should mask by - None (skip) on the whole path.
+
+    Upstream's whole path (``columns <= WHOLE * top_p``) packs EVERY slot (EMPTY
+    past each row's length) and sets counts = lengths, so the ``~listed`` mask is
+    a provable no-op there; skipping it keeps the oracle's exact op sequence -
+    and therefore its measured timings and peak allocations - equal to what every
+    v0.2.1/v0.3.1 receipt measured. The sampled path (``columns > WHOLE * top_p``)
+    leaves unlisted slots unwritten and MUST pass the counts (the fix).
+    """
+    return None if scores.shape[1] <= triton_top_k.WHOLE * config.top_p else listed
+
+
+def flat_select_reference(
+    index_queries: torch.Tensor,
+    positions: torch.Tensor,
+    buckets: Buckets,
+    config: PortConfig,
+    top_k: int | None = None,
+    score_dtype: str = "bf16",
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """The v0.3.1 production select - the immutable A/B oracle for v0.4.0 fusion.
+
+    The bf16 centroid GEMM with fp32 out (as the served path), upstream's Triton
+    top-k listing, a sort of the packed keys to best-first order (their int64 layout
+    is order-preserving), and upstream's Triton rank-order expansion. Byte-for-byte
+    what every v0.2.1/v0.3.1 receipt measured; the fused candidates in
+    ``select_fused`` must reproduce its output exactly or fail their gates.
+    """
+    top_k = config.top_k if top_k is None else top_k
+    scores, counts = _production_scores(index_queries, positions, buckets, config, score_dtype)
     listing = triton_top_k.TopK(config.top_p, exact=False)
-    keys, _ = listing.listed(scores, counts)
-    picked = unpack_ids(best_first_keys(keys, config.top_p))
+    keys, listed = listing.listed(scores, counts)
+    picked = unpack_ids(best_first_keys(keys, config.top_p, counts=_mask_for(scores, config, listed)))
     return triton_expansion.expand_in_order(
         picked, buckets.members, positions.int(), config.window_size, config.sink_size, top_k
     )
+
+
+def flat_select(
+    index_queries: torch.Tensor,
+    positions: torch.Tensor,
+    buckets: Buckets,
+    config: PortConfig,
+    top_k: int | None = None,
+    score_dtype: str = "bf16",
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Select each query's keys - the production composition, implementation-switched.
+
+    ``LSA_SELECT_IMPL`` picks the implementation (default ``reference``):
+    ``reference`` is v0.3.1's chain verbatim (``flat_select_reference``);
+    ``fused`` is the v0.4.0 measured select fusion - one kernel from scores to
+    best-first packed keys (pack + order-giving top-k fused, no [R, N] int64
+    key matrix) and the expansion reading the keys with the unpack fused in;
+    ``fused_unpack`` keeps the reference pack+top-k and fuses only the unpack
+    into the walk. All fused paths reproduce the reference output byte-exactly
+    (tests/test_select_fusion.py); unknown values fail loudly.
+    """
+    impl = os.environ.get("LSA_SELECT_IMPL", "reference")
+    if impl not in ("reference", "fused", "fused_unpack"):
+        raise ValueError(
+            f"LSA_SELECT_IMPL must be reference|fused|fused_unpack, got {impl!r}"
+        )
+    if impl == "reference":
+        return flat_select_reference(index_queries, positions, buckets, config, top_k, score_dtype)
+    top_k = config.top_k if top_k is None else top_k
+    scores, counts = _production_scores(index_queries, positions, buckets, config, score_dtype)
+    from lsa_rocm_lab.port import select_fused
+
+    if impl == "fused":
+        picks = select_fused.select_topk_scores(scores, counts, config.top_p)
+        return select_fused.expand_in_order_from_keys(
+            picks, buckets.members, positions.int(), config.window_size, config.sink_size, top_k
+        )
+    if impl == "fused_unpack":
+        listing = triton_top_k.TopK(config.top_p, exact=False)
+        keys, listed = listing.listed(scores, counts)
+        ordered = best_first_keys(keys, config.top_p, counts=_mask_for(scores, config, listed))
+        return select_fused.expand_in_order_from_keys(
+            ordered, buckets.members, positions.int(), config.window_size, config.sink_size, top_k
+        )
+    raise AssertionError(f"unreachable impl {impl!r}")
 
 
 def tree_select(
