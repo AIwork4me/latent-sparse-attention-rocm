@@ -1,5 +1,14 @@
 # v0.4.0 Evidence Index
 
+> **SHA256 manifest release-candidate addendum (2026-11-08).** All 25
+> evidence files below are sealed by the separate, additive manifest at
+> `evidence/v0.4.0/SHA256SUMS`. CPU-only `tests/test_v040_release_integrity.py`
+> verifies every SHA256 and exact file coverage on GitHub-hosted CI. The original
+> historical `evidence/SHA256SUMS` remains unchanged. Source integration is
+> merged (PR #7 → `6d17a7d`); publication and post-merge physical gfx1151 GPU
+> regression remain NOT_DONE. The amendment V040-H below supersedes the earlier
+> stale memory digest in table V040-H; the dirty historical receipt is archived.
+
 Every v0.4.0 claim in `MEASURED_SELECT_FUSION.md` / `BASELINE_AND_BOTTLENECKS.md` / `EXPERIMENT_DECISIONS.md` traces to an entry here. Append-only: nothing under `evidence/v0.4.0/` is ever edited or regenerated after commit.
 
 | ID | What | Path / anchor | Integrity |
