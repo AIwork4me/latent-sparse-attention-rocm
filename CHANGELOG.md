@@ -2,6 +2,66 @@
 
 All notable changes to this repository. Dates are UTC.
 
+## [0.4.0] — UNRELEASED (release candidate prepared 2026-11-08)
+
+**Scope: audited opt-in fused selection on Radeon gfx1151.** The version is
+prepared for release but **no v0.4.0 tag or GitHub Release exists yet**. The
+default `LSA_SELECT_IMPL` remains `reference`; `fused` is opt-in. The
+owner-gated default change is tracked separately in PR #8.
+
+### Added
+- Fused Triton `select_topk_scores`: score-pack + ordered top-k in one kernel,
+  omitting the large `[rows,columns]` int64 intermediate key matrix.
+- `expand_in_order_from_keys`: upstream-equivalent expansion with packed-key
+  unpacking fused into the kernel. `LSA_SELECT_IMPL=fused_unpack` is retained
+  as a measured alternative.
+- 31 adversarial sampled-wide-listing tests, on top of the 35 select-fusion
+  cases; the gfx1151 physical test report was **258 PASS** and gates **17/17**
+  in reference, batched-tree, and fused-select configurations.
+- Clean-tree final-SHA confirmation and five-sample peak-memory receipt at
+  numerical commit `45a0ed1`. All 25 v0.4.0 evidence files now have a
+  separate `evidence/v0.4.0/SHA256SUMS` seal, checked on hosted CPU CI.
+- R1.1 documentation/operations hardening from PR #6: dedicated-runner
+  migration runbook, safer workflow path, device-policy runtime probes.
+  **Owner must still execute and validate the actual systemd migration.**
+
+### Fixed
+- Sampled-wide selection previously let `best_first_keys` consider
+  unwritten listing slots. The repaired path masks unlisted elements to EMPTY,
+  while `_mask_for` skips an otherwise costly no-op mask on whole listings
+  (retaining prior v0.3.1 semantics and measured latency).
+- Historical v0.2.1/v0.3.1 Release descriptions were reconciled without
+  moving historical tags or replacing raw evidence.
+
+### Stage-level performance (gfx1151, 32k BF16)
+- Measured opt-in `fused` versus v0.3.1 `reference`, **not Dense SDPA**:
+  prefill select **2.96×**, prefill select+read **1.226×**, and B=1 decode
+  select+read **1.199×** across the 3-seed × 3-process campaign.
+  These are observed values/ranges, not confidence intervals.
+- One clean final-code confirmation: prefill select **2.977×**, prefill
+  select+read **1.225×**, decode select+read **1.224×** (single seed/process,
+  not a replacement for the multi-seed campaign).
+- 32k BF16 prefill select peak allocated memory: 2304.2 → 1344.9 MiB,
+  **−959.4 MiB (41.6%)** in a clean-tree five-sample receipt.
+- No more than 2% measured performance regressions across 120 aggregation
+  cells (smallest observed speedup 0.9986×). No model-serving/E2E benefit claimed.
+
+### Known limits / rollout
+- Hardware evidence: Radeon 8060S (gfx1151), ROCm 10.1.0. W7900/gfx1100
+  is NOT_TESTED. SGLang and model-level quality/E2E are NOT_VALIDATED.
+- Release candidate must pass hosted CPU checks and receive owner approval
+  before creating tag/Release. Post-merge trusted GPU CI requires the
+  owner-executed runner migration and environment approval.
+- Promotion of the `fused` **default** has its own explicit GPU/owner gate
+  in PR #8 and is NOT part of this release candidate.
+
+### Evidence and reproduction
+- `docs/v0.4.0/MEASURED_SELECT_FUSION.md`
+- `docs/reviews/V0_4_INDEPENDENT_REVIEW.md`
+- `evidence/v0.4.0/ab/` and `evidence/v0.4.0/SHA256SUMS`
+- `python -m pytest tests/test_v040_release_integrity.py -q` (CPU-only)
+- `cd evidence/v0.4.0 && sha256sum -c SHA256SUMS` (no GPU required)
+
 ## [0.3.1] — 2026-11-07
 
 Top-k key selection replaces the flat select's full-width sort + strided slice.
