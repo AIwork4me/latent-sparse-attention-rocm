@@ -20,6 +20,7 @@ skip loudly when no ROCm device is visible.
 
 import os
 import sys
+import warnings
 from pathlib import Path
 
 import pytest
@@ -64,9 +65,27 @@ def test_switch_unknown_impl_fails_loudly():
         os.environ.pop("LSA_SELECT_IMPL", None)
 
 
-def test_switch_default_is_reference(monkeypatch):
+def test_switch_default_is_fused(monkeypatch):
+    """Promotion: the unset default must dispatch to the FUSED path. The wide
+    fallback's UserWarning is the observable marker (only the fused path emits
+    it), and outputs stay byte-equal to the reference oracle either way."""
     monkeypatch.delenv("LSA_SELECT_IMPL", raising=False)
     assert pipeline.flat_select.__doc__ and "LSA_SELECT_IMPL" in pipeline.flat_select.__doc__
+    if "cuda" not in DEVICES:
+        pytest.skip("fused kernels are ROCm-only; the default dispatch is asserted on GPU")
+    q, k, v, idx_q, buckets, config = _build_workspace(65536, "cuda")  # wide: fused warns
+    positions = torch.arange(65536, device="cuda")[::64]
+    rows = idx_q[::64]
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        default_lists, default_lengths = pipeline.flat_select(rows, positions, buckets, config)
+    assert any("sampled listing" in str(w.message) for w in caught), (
+        "unset LSA_SELECT_IMPL did not take the fused path (no wide-fallback warning)"
+    )
+    ref_lists, ref_lengths = pipeline.flat_select_reference(rows, positions, buckets, config)
+    assert torch.equal(default_lists, ref_lists) and torch.equal(default_lengths, ref_lengths)
+    del q, k, v
+    torch.cuda.empty_cache()
 
 
 def test_wide_column_fallback_is_length_respecting():
