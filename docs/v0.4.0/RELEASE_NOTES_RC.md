@@ -15,7 +15,7 @@ This release candidate integrates two ROCm Triton optimizations for latent spars
 attention's flat selection: (1) scoring-row pack and sorted top-k within a
 single kernel, avoiding materialization of the large int64 listing-key matrix,
 and (2) unpacking selected packed keys as part of the upstream-equivalent
-expansion walk. The upsteam pin is `5ebea732d639576d2a7579b0de40e6252f9001f5`.
+expansion walk. The upstream pin is `5ebea732d639576d2a7579b0de40e6252f9001f5`.
 
 **Compatibility-preserving default:** with `LSA_SELECT_IMPL` unset, the
 v0.3.1 `reference` implementation remains active. To opt into fusion set
@@ -67,8 +67,8 @@ final verification and archived superseded receipt) are sealed with SHA256
 in `evidence/v0.4.0/SHA256SUMS`. Verify from a checkout:
 
 ```bash
-cd evidence/v0.4.0 && sha256sum -c SHA256SUMS
-python -m pytest tests/test_v040_release_integrity.py -q  # run at repo root
+(cd evidence/v0.4.0 && sha256sum -c SHA256SUMS)
+python -m pytest tests/test_v040_release_integrity.py -q  # from repo root
 ```
 
 The test suite checks precise coverage and immutable evidence bytes on the
