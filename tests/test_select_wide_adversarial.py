@@ -289,6 +289,32 @@ def test_wide_context_flat_select_byte_exact(impl, device):
 
 
 @pytest.mark.parametrize("device", [d for d in DEVICES if d == "cuda"])
+def test_whole_path_reference_is_the_v031_op_sequence(device):
+    """The whole-path mask skip pinned: flat_select_reference (columns <= 4*top_p)
+    must equal the exact v0.3.1 op sequence - listing + best_first_keys WITHOUT
+    counts + unpack + expand - byte-for-byte, so the oracle's measured timings
+    and allocations stay comparable to the published v0.3.1 receipts."""
+    from lsa.core.kernels.triton import expansion as triton_expansion
+
+    q, k, v, idx_q, buckets, config = _build_workspace(2048, device)
+    positions = torch.arange(2048, device=device)[::16]
+    rows = idx_q[::16]
+    assert rows.shape[1] <= 4 * config.top_p  # whole path really is taken
+    got_lists, got_lengths = pipeline.flat_select_reference(rows, positions, buckets, config)
+    scores, lengths = pipeline._production_scores(rows, positions, buckets, config, "bf16")
+    listing = triton_top_k.TopK(config.top_p, exact=False)
+    keys, _ = listing.listed(scores, lengths)
+    picked = keys_mod.unpack_ids(pipeline.best_first_keys(keys, config.top_p))
+    want_lists, want_lengths = triton_expansion.expand_in_order(
+        picked, buckets.members, positions.int(), config.window_size, config.sink_size, config.top_k
+    )
+    assert torch.equal(got_lists, want_lists)
+    assert torch.equal(got_lengths, want_lengths)
+    del q, k, v
+    torch.cuda.empty_cache()
+
+
+@pytest.mark.parametrize("device", [d for d in DEVICES if d == "cuda"])
 @pytest.mark.parametrize("bucket_cap", [8, 32])
 def test_flat_select_nondefault_bucket_cap_byte_exact(bucket_cap, device):
     """Non-default bucket capacity through the whole production composition."""
