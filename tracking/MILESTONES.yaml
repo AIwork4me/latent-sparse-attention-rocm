@@ -2,10 +2,13 @@
 # States: NOT_STARTED | IN_PROGRESS | BLOCKED | VERIFYING | REVIEW_READY | APPROVED | DONE
 
 schema_version: 1
-updated_utc: "2026-11-07T05:20:00Z"
+updated_utc: "2026-11-08T12:55:00Z"
 
 v0.2.1:
-  status: REVIEW_READY
+  status: DONE
+  release: v0.2.1
+  release_commit: 7b0b06f14578a5b9217d01510621bd38ab78a091
+  released_utc: 2026-11-07
   pr: 1
   branch: v0.2.1-scientific-validity
   acceptance_gates:
@@ -20,7 +23,10 @@ v0.2.1:
   remaining: ["owner merge decision", "post-merge trusted GPU run on main SHA before tagging"]
 
 v0.3.0:
-  status: REVIEW_READY
+  status: DONE
+  release: v0.3.1
+  release_commit: 0f1abeb6a88c84123d06fde7654a01d5254153d2
+  note: v0.3.0 improvements were published under the v0.3.1 tag; no v0.3.0 release tag
   pr: 5
   branch: v0.3.0-kernel-optimization
   objective: genuine ROCm kernel optimization (tile the sparse read; kernelize tree beam; close nothing on correctness)
@@ -45,7 +51,22 @@ v0.3.0:
     - "PASS: independent adversarial review GO-WITH-FINDINGS; F1-F7 closed at 1e73c3a (docs/reviews/V0_3_INDEPENDENT_REVIEW.md)"
     - "PASS (v0.3.1 at 60c004b): topk select swap (decode select 1.24x, equivalence-pinned); 11/11 receipts re-issued at the new code head, 181 tests, 17/17 gates"
 
-v0.4.0: {status: NOT_STARTED, objective: "context scaling 64k-256k+, covering-array matrix, crossover curves, UMA/GTT honesty"}
+v0.4.0:
+  status: REVIEW_READY
+  objective: "measured select fusion on gfx1151; stage-level performance with reference default"
+  pr_merged: 7
+  merge_sha: 6d17a7deb1d0537a938b341410772fc379bcbf06
+  final_numerical_code_sha: 45a0ed12201b3a301712815dab32c0dac9c8fee4
+  evidence: [evidence/v0.4.0/SHA256SUMS, evidence/v0.4.0/ab/aggregate-fused.json,
+             evidence/v0.4.0/ab/memory-probe.json, docs/reviews/V0_4_INDEPENDENT_REVIEW.md]
+  verified: "PR7 hosted CPU CI green; physical gfx1151 suite 258/258 and 17/17 gates reported before merge; stage receipts audited"
+  release_status: "UNRELEASED_RC; package version and notes staged on release/v0.4.0-rc-hygiene"
+  remaining: ["RC hosted CPU integrity CI", "owner review and release authorization",
+              "runner migration and post-merge GPU workflow pending separately"]
+  default_select_impl: reference
+  next_default_promotion: "Draft PR #8 — only after release + owner approval + actual GPU regression"
+  deferred_context_scaling: "64k-256k performance remains NOT_RUN; schedule as separate future research"
+
 v0.5.0: {status: NOT_STARTED, objective: "real model 0.5B-3B + model-bound indexer + RULER/NIAH quality gates (pre-registered)"}
 v0.6.0: {status: BLOCKED_ON_REASSESS, objective: "SGLang gfx1151 serving lane (ROCm 7.2.4 image is separate; primary stays 10.1)",
          note: "reassess official gfx1151 docs before declaring blocked"}
