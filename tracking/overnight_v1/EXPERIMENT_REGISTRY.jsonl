@@ -1,0 +1,2 @@
+# Experiment registry (append-only; preregister BEFORE each run)
+# schema: ts | id | hypothesis | command | status | receipt_path

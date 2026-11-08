@@ -1,0 +1,55 @@
+{
+  "campaign": "overnight_v1",
+  "executor": "ZCode session (owner instructed to replace codex exec with ZCode on this host, 2026-11-08 ~21:50 +08:00)",
+  "mission_sha_at_start": "kit zip lsa_gfx1151_overnight_v1_kit.zip, MISSION dated 2026-11-08 21:35",
+  "start_local": "2026-11-08T21:55:00+08:00 (approx; worktree branch timestamp)",
+  "deadline_local": "2026-11-09T07:00:00+08:00",
+  "hard_cap_hours": 10,
+  "status_legend": "NOT_STARTED | RUNNING | PASS | FAIL | OOM | TIMEOUT | BLOCKED | NOT_RUN",
+  "repo": {
+    "worktree": "/home/amd/lsa-v1-overnight",
+    "branch": "exp/gfx1151-v1-night-20261108-2155",
+    "base_sha": "83e410b7071a632392e85843308eb06870a048a8",
+    "base_matches_mission_start_point": true,
+    "drift_check": "gh api commits/main == 83e410b7 at 2026-11-08T21:49+08:00; git fetch (http.version=HTTP/1.1) landed objects; no drift",
+    "upstream_pin": "5ebea732d639576d2a7579b0de40e6252f9001f5",
+    "venv": "/home/amd/Desktop/lsa-rocm-eval-starter/.venv (torch 2.14.0+rocm10.1.0, Triton 3.8.0+git669b31ac)"
+  },
+  "hardware": {
+    "host": "AMD Ryzen AI MAX+ PRO 395, Radeon 8060S gfx1151, 32 GiB UMA",
+    "gpu_visible": true,
+    "exclusive_at_start": "PASS (fuser /dev/kfd empty at 21:47, 21:55 +08:00)",
+    "ram_available_at_start": "88 GiB",
+    "disk_free_at_start": "76 GiB on /"
+  },
+  "github": {
+    "gpu_run_42483727525": {
+      "status_at_start": "pending",
+      "meaning": "NOT RUN - never treated as PASS; no environment approval attempted; no second listener created"
+    },
+    "pr8": "DRAFT - must remain draft; default LSA_SELECT_IMPL stays reference",
+    "v0.4.0": "UNRELEASED RC - no tag, no release tonight",
+    "runner": "OWNER_ACTION_REQUIRED migration - untouched by this campaign"
+  },
+  "p0": {
+    "start_point_verified": "PASS",
+    "evidence_v040_manifest": "PASS 28/28 (sha256sum -c SHA256SUMS from evidence/v0.4.0)",
+    "ledger_initialized": "PASS",
+    "gate_commands_verified": "RUNNING"
+  },
+  "workstreams": {
+    "M1_merged_tree_gpu_qualification": "RUNNING",
+    "M2_long_context_scaling_64k_256k": "NOT_STARTED",
+    "M3_true_model_quality": "NOT_STARTED",
+    "M4_sglang_feasibility": "NOT_STARTED",
+    "M5_e2e_serving_optimization": "NOT_STARTED",
+    "M6_reliability_repro_dx": "NOT_STARTED",
+    "M7_v1_0_0_qualification": "NOT_STARTED"
+  },
+  "claim_separation": [
+    "code_implemented",
+    "local_gpu_validated",
+    "github_ci_validated",
+    "released"
+  ]
+}
