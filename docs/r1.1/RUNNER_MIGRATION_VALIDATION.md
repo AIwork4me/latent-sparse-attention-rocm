@@ -47,8 +47,9 @@ Mapped to the corrected unit: workspace `_work` (repo checkout) and sandbox `$HO
 
 ## 2. Migration/rollback ledger
 
-- `ops/migrate-runner.sh` — owner-executed `sudo` runbook: preflight aborts → useradd → rsync copies (originals intact) → stale-state strip → **validated venv-repair recipe** → ownership/modes → corrected unit install/verify/enable → read-only isolation + GPU proof as `lsa-runner` → printed handoff (workflow PR, queued-run approval, old-install retirement, credential rotation, runner-group scoping).
+- `ops/migrate-runner.sh` — owner-executed `sudo` runbook: preflight aborts (incl. **partial-state guard**: fresh run aborts if user or `/opt` state already exists; `--resume` re-runs the idempotent steps 2–7 from wherever an attempt aborted) → useradd → rsync copies (originals intact) → stale-state strip → **validated venv-repair recipe** → ownership/modes → corrected unit install/verify/enable → **isolation + GPU proof executed in the service security context** (a transient `systemd-run` service transcribing the installed unit's sandbox via `systemctl show`, with a parity guard on the unit file; NOT `sudo -u`, which sees all of `/home` and every device the unit filters) → printed handoff (merge workflow-fix PR, fresh-push-run validation, old-install retirement, credential rotation, runner-group scoping).
 - `ops/rollback-runner.sh` — exact reversal at every step; originals were never modified; explicit mutual-exclusion rule against double listeners.
+- Contract tests `tests/test_r11_ops_contracts.py` pin the invariants (workflow↔script venv path consistency, partial-state guard, service-context validation, fresh-push-run validation vehicle) on every CI run.
 - Disk: needs ~12 GiB in `/opt` (9.1 GiB venv copy + runner); 76 GiB free at freeze (verified; re-checked by script).
 - GPU runner stays **offline** until the owner executes the migration — unchanged policy.
 
@@ -57,10 +58,12 @@ Mapped to the corrected unit: workspace `_work` (repo checkout) and sandbox `$HO
 | Check | Method | Status |
 |---|---|---|
 | Dedicated service identity | `systemctl status github-runner-lsa` shows `User=lsa-runner` | PENDING OWNER |
-| Runner online + unique (no duplicate listener) | Actions UI: `lsa-rocm-gfx1151` Idle, exactly one session; old install offline/retired | PENDING OWNER |
-| Credential isolation | `sudo -u lsa-runner test ! -r /home/amd/.config/gh/hosts.yml` (in script §7) | PENDING OWNER |
-| ROCm GPU visibility + Triton compile | script §7 `torch.cuda.is_available()` + hip assert; queued run compiles real kernels | PENDING OWNER |
-| Full 17/17 gates both tree impls via GitHub | kept queued run `42381769814` @ main `1ab0e0b` (A2) executes on the new runner after env approval | PENDING OWNER |
+| Credential isolation **in the service context** | script §7a: inside the `systemd-run` sandbox (unit's ProtectHome/ProtectSystem/DevicePolicy transcribed from the live unit) `/home` is entirely invisible — `test ! -e /home/amd` | PENDING OWNER |
+| Device allowlist **actually filters** | script §7b: `/dev/dri` inside the sandbox ⊆ the unit's `DeviceAllow` list (a non-allowed node appearing = hard abort; also catches host card-renumbering after reboot) | PENDING OWNER |
+| ROCm GPU visibility + Triton JIT compile **in the service context** | script §7c: real `@triton.jit` kernel compiled and executed from the relocated venv inside the sandbox (cache written to the sandbox HOME, §7d writability asserted) | PENDING OWNER |
+| Runner registration + unique listener identity | script §7e: service active, exactly 1 `Runner.Listener` under `lsa-runner`; gh-side: `gh api repos/AIwork4me/latent-sparse-attention-rocm/actions/runners` → single `lsa-rocm-gfx1151` online | PENDING OWNER |
+| Full 17/17 gates + suite via GitHub (the real workflow) | **fresh push run fired by merging PR #6** (workflow `PY="/opt/lsa-rocm/.venv/bin/python"`); approve in `gpu-regression` env. Supersedes cancelled pre-migration run `42381769814` (see ACTIONS_QUEUE_AUDIT.md addendum) | PENDING OWNER |
+| Rollback rehearsed | `ops/rollback-runner.sh` reviewed; originals intact by construction | READY |
 | Sibling runners unaffected | sibling PIDs still alive; their next jobs succeed | PENDING OWNER |
 | Old credential rotation | `gh auth logout` on `amd` after dependency check | PENDING OWNER (separate approval) |
 

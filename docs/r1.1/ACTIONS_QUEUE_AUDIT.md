@@ -31,3 +31,22 @@ If the owner instead prefers a fresh post-migration run, this one can be cancell
 - No other queued GPU jobs exist; the persistent GPU runner remains **offline** pending its migration and isolation checks (unchanged, per policy).
 
 **Acceptance: MET** — no obsolete queued GPU job remains capable of unexpectedly executing when the runner comes online; the single intentional remaining run is explicitly explained and non-obsolete.
+
+## A2 addendum (2026-11-08, handoff review session): run 42381769814 cancelled
+
+The A2 decision to keep queued run `42381769814` (push @ main `1ab0e0b`) as the
+"post-migration validation vehicle" was **wrong and is reversed**:
+
+- A `push` run executes the workflow file **from the SHA that triggered it** — for this run,
+  `1ab0e0b`, whose "Locate the ROCm venv" step is `PY="$HOME/Desktop/lsa-rocm-eval-starter/.venv/bin/python"`.
+  No later merge changes that binding.
+- On the migrated runner (service `HOME=/opt/actions-runner-lsa/home`) that path resolves to
+  nothing: the run could only ever **fail at the venv step**. It could never have validated the
+  migration, and its failure would have looked like a migration defect.
+- Disposition: **cancelled 2026-11-08** (`gh run cancel`, verified `completed/cancelled`).
+
+Replacement vehicle (owner-gated): the **push run fired by merging PR #6 itself** — its workflow
+(`PY="/opt/lsa-rocm/.venv/bin/python"`) resolves the migrated venv; approve it in the
+`gpu-regression` environment; 17/17 gates + full suite + receipt validation on the new runner is
+the end-to-end post-migration proof. Any run predating that merge must not be treated as
+post-migration evidence.
