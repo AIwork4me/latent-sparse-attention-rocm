@@ -90,4 +90,5 @@ def test_v040_package_and_release_metadata_are_rc_scoped():
         encoding="utf-8"
     )
     assert "RELEASE CANDIDATE — UNRELEASED" in notes
-    assert "default remains" in notes.lower() or "default:" in notes.lower()
+    assert "Compatibility-preserving default" in notes
+    assert "LSA_SELECT_IMPL" in notes and "reference" in notes
